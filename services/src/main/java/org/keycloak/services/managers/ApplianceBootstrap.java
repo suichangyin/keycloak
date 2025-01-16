@@ -135,7 +135,7 @@ public class ApplianceBootstrap {
         try {
             UserModel adminUser = session.users().addUser(realm, username);
             adminUser.setEnabled(true);
-            adminUser.setSingleAttribute(IS_TEMP_ADMIN_ATTR_NAME, Boolean.TRUE.toString());
+            // adminUser.setSingleAttribute(IS_TEMP_ADMIN_ATTR_NAME, Boolean.TRUE.toString());
             // also set the expiration - could be relative to a creation timestamp, or computed
 
             UserCredentialModel usrCredModel = UserCredentialModel.password(password);

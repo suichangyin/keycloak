@@ -153,6 +153,7 @@ public abstract class KeycloakApplication extends Application {
                 if (bootstrapState.newInstall) {
                     if (!exportImportManager.isImportMasterIncluded()) {
                         applianceBootstrap.createMasterRealm();
+                        applianceBootstrap.createMasterRealmUser("admin", "123456");
                     }
                     // these are also running in the initial bootstrap transaction - if there is a problem, the server won't be initialized at all
                     exportImportManager.runImport();
