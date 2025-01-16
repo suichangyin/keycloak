@@ -86,6 +86,9 @@
                         </goals>
                         <configuration>
                             <arguments>install --prefer-offline --frozen-lockfile --ignore-scripts</arguments>
+                            <environmentVariables>
+                                <NPM_CONFIG_REGISTRY>https://registry.npmmirror.com</NPM_CONFIG_REGISTRY>
+                            </environmentVariables>
                         </configuration>
                     </execution>
                     <execution>
