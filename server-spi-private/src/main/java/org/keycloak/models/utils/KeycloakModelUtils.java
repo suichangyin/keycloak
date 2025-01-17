@@ -267,7 +267,7 @@ public final class KeycloakModelUtils {
         return client;
     }
 
-    private static ClientModel createClient(RealmModel realm, String name) {
+    public static ClientModel createClient(RealmModel realm, String name) {
         ClientModel client = realm.addClient(name);
 
         client.setClientAuthenticatorType(getDefaultClientAuthenticatorType());

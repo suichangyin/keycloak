@@ -18,6 +18,7 @@ package org.keycloak.services.managers;
 
 import jakarta.ws.rs.ClientErrorException;
 import jakarta.ws.rs.core.Response;
+import org.jboss.logging.Logger;
 import org.keycloak.Config;
 import org.keycloak.common.Profile;
 import org.keycloak.common.enums.SslRequired;
@@ -77,6 +78,7 @@ import org.keycloak.utils.StringUtil;
  * @version $Revision: 1 $
  */
 public class RealmManager {
+    private static final Logger logger = Logger.getLogger(RealmManager.class);
 
     protected KeycloakSession session;
     protected RealmProvider model;
@@ -132,6 +134,11 @@ public class RealmManager {
         setupAdminConsole(realm);
         setupAdminConsoleLocaleMapper(realm);
         setupAdminCli(realm);
+        if (realm.getName().equals(Config.getAdminRealm())) {
+            setupUnicornAdminConsole(realm);
+            setupUnicornAccountConsole(realm);
+            setupDatatomcloudClient(realm, "--createDefaultRealm", "--createDefaultRealm--");
+        }
         setupImpersonationService(realm);
         setupAuthenticationFlows(realm);
         setupRequiredActions(realm);
@@ -227,6 +234,76 @@ public class RealmManager {
         }
 
     }
+
+    protected void setupExtraConsoleLocaleMapper(RealmModel realm, String clientId) {
+        ClientModel console = realm.getClientByClientId(clientId);
+        ProtocolMapperModel localeMapper = console.getProtocolMapperByName(OIDCLoginProtocol.LOGIN_PROTOCOL, OIDCLoginProtocolFactory.LOCALE);
+
+        if (localeMapper == null) {
+            localeMapper = ProtocolMapperUtils.findLocaleMapper(session);
+            if (localeMapper != null) {
+                console.addProtocolMapper(localeMapper);
+            }
+        }
+    }
+
+    private void setupExtraConsole(RealmModel realm, String id, String name) {
+        ClientModel console = realm.getClientByClientId(id);
+        if (console == null) {
+            console = KeycloakModelUtils.createClient(realm, id);
+            console.setName(name);
+            console.setEnabled(true);
+            console.setAlwaysDisplayInConsole(false);
+            console.setPublicClient(true);
+            console.setFullScopeAllowed(false);
+            console.setProtocol(OIDCLoginProtocol.LOGIN_PROTOCOL);
+            console.setRedirectUris(Collections.singleton("*"));
+            console.setWebOrigins(Collections.singleton("*"));
+            console.setAttribute(OIDCConfigAttributes.PKCE_CODE_CHALLENGE_METHOD, "S256");
+        }
+
+        setupExtraConsoleLocaleMapper(realm, id);
+    }
+
+    public void setupUnicornAdminConsole(RealmModel realm) {
+        setupExtraConsole(realm, Constants.UNICORN_ADMIN_CONSOLE_CLIENT_ID, "Unicorn Administration Console");
+    }
+
+    public void setupUnicornAccountConsole(RealmModel realm) {
+        logger.infof("setupUnicornAccountConsole --- 0");
+        setupExtraConsole(realm, Constants.UNICORN_ACCOUNT_CONSOLE_CLIENT_ID, "Unicorn Account Console");
+
+        ClientModel accountClient = realm.getClientByClientId(Constants.ACCOUNT_MANAGEMENT_CLIENT_ID);
+        ClientModel unicornAccountConsole = realm.getClientByClientId(Constants.UNICORN_ACCOUNT_CONSOLE_CLIENT_ID);
+        unicornAccountConsole.addScopeMapping(accountClient.getRole(AccountRoles.MANAGE_ACCOUNT));
+    }
+
+    public void setupDatatomcloudClient(RealmModel realm, String realmId, String realmName) {
+        logger.infof("setupDatatomcloudClient, realm id:%s, name:%s", realmId, realmName);
+        String id = "datatom-cloud";
+        String secret = "61e52f2a-f8d0-422d-ae61-958fec330e6a";
+        ClientModel console = realm.getClientByClientId(id);
+        if (console == null) {
+            console = KeycloakModelUtils.createClient(realm, id);
+            console.setName("datatom cloud");
+            console.setEnabled(true);
+            console.setAlwaysDisplayInConsole(false);
+            console.setPublicClient(false);
+            console.setFullScopeAllowed(false);
+            console.setProtocol(OIDCLoginProtocol.LOGIN_PROTOCOL);
+            console.setRedirectUris(Collections.singleton("*"));
+            console.setWebOrigins(Collections.singleton("*"));
+            //console.setAttribute(OIDCConfigAttributes.PKCE_CODE_CHALLENGE_METHOD, "S256");
+            console.setClientAuthenticatorType(KeycloakModelUtils.getDefaultClientAuthenticatorType());
+            console.setSecret(secret);
+            console.setStandardFlowEnabled(true);
+            console.setDirectAccessGrantsEnabled(true);
+        }
+        ClientModel accountClient = realm.getClientByClientId(Constants.ACCOUNT_MANAGEMENT_CLIENT_ID);
+        ClientModel datatomcloudClient = realm.getClientByClientId(id);
+        datatomcloudClient.addScopeMapping(accountClient.getRole(AccountRoles.MANAGE_ACCOUNT));
+    }
+
     public void addQueryCompositeRoles(ClientModel realmAccess) {
         RoleModel queryClients = realmAccess.getRole(AdminRoles.QUERY_CLIENTS);
         RoleModel queryUsers = realmAccess.getRole(AdminRoles.QUERY_USERS);
