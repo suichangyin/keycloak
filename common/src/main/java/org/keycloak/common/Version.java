@@ -27,7 +27,7 @@ import java.util.Properties;
  */
 public class Version {
     public static final String UNKNOWN = "UNKNOWN";
-    public static final String NAME = "Keycloak";
+    public static final String NAME = "Unicorn";
     public static final String NAME_HTML = "<div class=\"kc-logo-text\"><span>Keycloak</span></div>";
     public static String VERSION;
     public static String RESOURCES_VERSION;
