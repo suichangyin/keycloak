@@ -46,7 +46,7 @@ public class Config {
     }
 
     public static String getAdminRealm() {
-        return configProvider.scope("admin").get("realm", "master");
+        return configProvider.scope("admin").get("realm", "default");
     }
 
     public static String getProvider(String spi) {

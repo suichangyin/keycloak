@@ -331,7 +331,7 @@ const Dashboard = () => {
 
 export default function DashboardSection() {
   const { realm } = useRealm();
-  const isMasterRealm = realm === "master";
+  const isMasterRealm = realm === "default";
   return (
     <>
       {!isMasterRealm && <EmptyDashboard />}
