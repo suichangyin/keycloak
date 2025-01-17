@@ -16,8 +16,11 @@
  */
 package org.keycloak.services.resources.admin;
 
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.jboss.logging.Logger;
+import org.jboss.resteasy.reactive.NoCache;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.http.HttpResponse;
 import jakarta.ws.rs.NotFoundException;
@@ -53,7 +56,9 @@ import jakarta.ws.rs.core.UriInfo;
 import jakarta.ws.rs.ext.Provider;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -229,6 +234,33 @@ public class AdminRoot {
         Cors.builder().allowedOrigins(auth.getToken()).allowedMethods("GET", "PUT", "POST", "DELETE").exposedHeaders("Location").auth().add();
 
         return new RealmsAdminResource(session, auth, tokenManager);
+    }
+
+    /**
+     * return realm names
+     *
+     * @return
+     */
+    @GET
+    @NoCache
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("realm-names")
+    public Map<String, String> getRealmNames() {
+        // use LinkedHashMap to keep order
+        Map<String, String> realmNames = new LinkedHashMap<>();
+
+        session.realms().getRealmsStream()
+                .forEach(realm -> {
+                    if (realm.isEnabled()) {
+                        String displayName = realm.getDisplayName();
+                        if (displayName == null) {
+                            displayName = "";
+                        }
+                        realmNames.put(realm.getName(), displayName);
+                    }
+                });
+
+        return realmNames;
     }
 
     @Path("{any:.*}")
