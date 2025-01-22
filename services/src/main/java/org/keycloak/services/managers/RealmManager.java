@@ -289,7 +289,7 @@ public class RealmManager {
             console.setEnabled(true);
             console.setAlwaysDisplayInConsole(false);
             console.setPublicClient(false);
-            console.setFullScopeAllowed(false);
+            console.setFullScopeAllowed(true);
             console.setProtocol(OIDCLoginProtocol.LOGIN_PROTOCOL);
             console.setRedirectUris(Collections.singleton("*"));
             console.setWebOrigins(Collections.singleton("*"));
