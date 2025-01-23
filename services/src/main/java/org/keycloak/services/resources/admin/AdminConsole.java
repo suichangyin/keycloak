@@ -235,10 +235,10 @@ public class AdminConsole {
                 throw new ForbiddenException("No azp claim in the token");
             }
             // check the attribute to see if the app is defined as an admin console
-            ClientModel client  = session.clients().getClientByClientId(realm, issuedFor);
-            if (client == null || !Boolean.parseBoolean(client.getAttribute(Constants.SECURITY_ADMIN_CONSOLE_ATTR))) {
-                throw new ForbiddenException("Token issued for an application that is not the admin console: " + issuedFor);
-            }
+//            ClientModel client  = session.clients().getClientByClientId(realm, issuedFor);
+//            if (client == null || !Boolean.parseBoolean(client.getAttribute(Constants.SECURITY_ADMIN_CONSOLE_ATTR))) {
+//                throw new ForbiddenException("Token issued for an application that is not the admin console: " + issuedFor);
+//            }
         }
 
         UserModel user= authResult.getUser();
