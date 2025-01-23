@@ -100,7 +100,8 @@ public class AdminConsole {
         protected String displayName;
         protected Locale locale;
         protected boolean isTemporary;
-
+        protected boolean admin;
+        protected boolean realmAdmin;
         @JsonProperty("createRealm")
         protected boolean createRealm;
         @JsonProperty("realm_access")
@@ -109,10 +110,13 @@ public class AdminConsole {
         public WhoAmI() {
         }
 
-        public WhoAmI(String userId, String realm, String displayName, boolean createRealm, Map<String, Set<String>> realmAccess, Locale locale, boolean isTemporary) {
+        public WhoAmI(String userId, String realm, String displayName, boolean admin, boolean realmAdmin,
+                      boolean createRealm, Map<String, Set<String>> realmAccess, Locale locale, boolean isTemporary) {
             this.userId = userId;
             this.realm = realm;
             this.displayName = displayName;
+            this.admin = admin;
+            this.realmAdmin = realmAdmin;
             this.createRealm = createRealm;
             this.realmAccess = realmAccess;
             this.locale = locale;
@@ -141,6 +145,22 @@ public class AdminConsole {
 
         public void setDisplayName(String displayName) {
             this.displayName = displayName;
+        }
+
+        public boolean isAdmin() {
+            return admin;
+        }
+
+        public void setAdmin(boolean admin) {
+            this.admin = admin;
+        }
+
+        public boolean isRealmAdmin() {
+            return realmAdmin;
+        }
+
+        public void setRealmAdmin(boolean realmAdmin) {
+            this.realmAdmin = realmAdmin;
         }
 
         public boolean isCreateRealm() {
@@ -256,15 +276,27 @@ public class AdminConsole {
         Map<String, Set<String>> realmAccess = new HashMap<String, Set<String>>();
         if (masterRealm == null)
             throw new NotFoundException("No realm found");
+        boolean admin= false;
+        boolean realmAdmin = false;
         boolean createRealm = false;
         if (realm.equals(masterRealm)) {
             logger.debug("setting up realm access for a master realm user");
+            admin = user.hasRole(masterRealm.getRole(AdminRoles.ADMIN));
+            realmAdmin = admin;
             RoleModel createRealmRole = masterRealm.getRole(AdminRoles.CREATE_REALM);
             if (createRealmRole != null) {
                 createRealm = user.hasRole(createRealmRole);
             }
             addMasterRealmAccess(user, currentRealm != null ? currentRealm : realm.getName(), realmAccess);
         } else {
+            realmAdmin = user.hasRole(realm.getRole(AdminRoles.ADMIN));
+            if (!realmAdmin) {
+                ClientModel realmAdminApp = realm.getClientByClientId(realmManager.getRealmAdminClientId(realm));
+                RoleModel adminRole = realmAdminApp.getRole(AdminRoles.REALM_ADMIN);
+                if (adminRole != null) {
+                    realmAdmin = user.hasRole(adminRole);
+                }
+            }
             logger.debug("setting up realm access for a realm user");
             addRealmAccess(realm, user, realmAccess);
         }
@@ -275,12 +307,12 @@ public class AdminConsole {
         }
 
         Locale locale = session.getContext().resolveLocale(user);
-
         return Cors.builder()
                 .allowedOrigins(authResult.getToken())
                 .allowedMethods("GET")
                 .auth()
-                .add(Response.ok(new WhoAmI(user.getId(), realm.getName(), displayName, createRealm, realmAccess, locale, Boolean.parseBoolean(user.getFirstAttribute(IS_TEMP_ADMIN_ATTR_NAME)))));
+                .add(Response.ok(new WhoAmI(user.getId(), realm.getName(), displayName, admin, realmAdmin,
+                        createRealm, realmAccess, locale, Boolean.parseBoolean(user.getFirstAttribute(IS_TEMP_ADMIN_ATTR_NAME)))));
     }
 
     private void addRealmAccess(RealmModel realm, UserModel user, Map<String, Set<String>> realmAdminAccess) {
