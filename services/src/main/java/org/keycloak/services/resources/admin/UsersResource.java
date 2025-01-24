@@ -135,6 +135,26 @@ public class UsersResource {
             }
         }
 
+        if (rep.getId() != null) {
+            if (session.users().getUserById(realm, rep.getId()) != null) {
+                throw ErrorResponse.error("User with ID already exists", Response.Status.CONFLICT);
+            }
+
+            try {
+                if (!rep.getId().equals(UUID.fromString(rep.getId()).toString())) {
+                    throw new IllegalArgumentException("");
+                }
+            } catch (IllegalArgumentException exception) {
+                throw ErrorResponse.error("Invalid user ID", Response.Status.BAD_REQUEST);
+            }
+        }
+
+        if (rep.getUid() != null) {
+            if (rep.getUid() <= 0) {
+                throw ErrorResponse.error("Invalid user UID", Response.Status.BAD_REQUEST);
+            }
+        }
+
         String username = rep.getUsername();
         if(realm.isRegistrationEmailAsUsername()) {
             username = rep.getEmail();

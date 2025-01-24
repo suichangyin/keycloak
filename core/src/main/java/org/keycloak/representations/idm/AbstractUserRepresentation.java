@@ -37,6 +37,7 @@ public abstract class AbstractUserRepresentation {
     public static String LOCALE = "locale";
 
     protected String id;
+    protected Integer uid;
     protected String username;
     protected String firstName;
     protected String lastName;
@@ -53,6 +54,14 @@ public abstract class AbstractUserRepresentation {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public Integer getUid() {
+        return uid;
+    }
+
+    public void setUid(Integer uid) {
+        this.uid = uid;
     }
 
     public String getFirstName() {
