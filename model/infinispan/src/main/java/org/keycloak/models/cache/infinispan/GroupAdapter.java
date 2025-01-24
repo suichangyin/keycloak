@@ -113,6 +113,18 @@ public class GroupAdapter implements GroupModel {
     }
 
     @Override
+    public String getDisplayName() {
+        if (isUpdated()) return updated.getDisplayName();
+        return cached.getDisplayName();
+    }
+
+    @Override
+    public void setDisplayName(String displayName) {
+        getDelegateForUpdate();
+        updated.setDisplayName(displayName);
+    }
+
+    @Override
     public void setSingleAttribute(String name, String value) {
         getDelegateForUpdate();
         updated.setSingleAttribute(name, value);

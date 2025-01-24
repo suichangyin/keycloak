@@ -193,6 +193,10 @@ public interface GroupModel extends RoleMapperModel {
 
     void setName(String name);
 
+    String getDisplayName();
+
+    void setDisplayName(String displayName);
+
     /**
      * Set single value of specified attribute. Remove all other existing values
      *

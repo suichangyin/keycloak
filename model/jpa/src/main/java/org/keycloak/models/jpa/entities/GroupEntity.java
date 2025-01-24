@@ -32,14 +32,14 @@ import java.util.LinkedList;
         @NamedQuery(name="getGroupIdsByParentAndName", query="select u.id from GroupEntity u where u.realm = :realm and u.type = 0 and u.parentId = :parent and u.name = :search order by u.name ASC"),
         @NamedQuery(name="getGroupIdsByParentAndNameContaining", query="select u.id from GroupEntity u where u.realm = :realm and u.type = 0 and u.parentId = :parent and lower(u.name) like lower(concat('%',:search,'%')) order by u.name ASC"),
         @NamedQuery(name="getGroupIdsByRealm", query="select u.id from GroupEntity u where u.realm = :realm  and u.type = 0 order by u.name ASC"),
-        @NamedQuery(name="getGroupIdsByNameContaining", query="select u.id from GroupEntity u where u.realm = :realm and u.type = 0 and lower(u.name) like lower(concat('%',:search,'%')) order by u.name ASC"),
-        @NamedQuery(name="getGroupIdsByNameContainingFromIdList", query="select u.id from GroupEntity u where u.realm = :realm and u.type = 0 and lower(u.name) like lower(concat('%',:search,'%')) and u.id in :ids order by u.name ASC"),
+        @NamedQuery(name="getGroupIdsByNameContaining", query="select u.id from GroupEntity u where u.realm = :realm and u.type = 0 and (lower(u.name) like lower(concat('%',:search,'%')) or lower(u.displayName) like lower(concat('%',:search,'%'))) order by u.name ASC"),
+        @NamedQuery(name="getGroupIdsByNameContainingFromIdList", query="select u.id from GroupEntity u where u.realm = :realm and u.type = 0 and (lower(u.name) like lower(concat('%',:search,'%')) or lower(u.displayName) like lower(concat('%',:search,'%'))) and u.id in :ids order by u.name ASC"),
         @NamedQuery(name="getGroupIdsByName", query="select u.id from GroupEntity u where u.realm = :realm and u.type = 0 and u.name = :search order by u.name ASC"),
         @NamedQuery(name="getGroupIdsFromIdList", query="select u.id from GroupEntity u where u.realm = :realm and u.type = 0 and u.id in :ids order by u.name ASC"),
         @NamedQuery(name="getGroupCountByNameContainingFromIdList", query="select count(u) from GroupEntity u where u.realm = :realm and u.type = 0 and lower(u.name) like lower(concat('%',:search,'%')) and u.id in :ids"),
         @NamedQuery(name="getGroupCount", query="select count(u) from GroupEntity u where u.realm = :realm and u.type = 0"),
         @NamedQuery(name="getGroupCountByParent", query="select count(u) from GroupEntity u where u.realm = :realm and u.type = 0 and u.parentId = :parent"),
-        @NamedQuery(name="deleteGroupsByRealm", query="delete from GroupEntity g where g.realm = :realm")
+        @NamedQuery(name="deleteGroupsByRealm", query="delete from GroupEntity g where g.realm = :realm"),
 })
 @Entity
 @Table(name="KEYCLOAK_GROUP",
@@ -60,6 +60,10 @@ public class GroupEntity {
     @Nationalized
     @Column(name = "NAME")
     protected String name;
+
+    @Nationalized
+    @Column(name = "DISPLAY_NAME")
+    protected String displayName;
 
     @Column(name = "PARENT_GROUP")
     private String parentId;
@@ -100,6 +104,14 @@ public class GroupEntity {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
     }
 
     public String getRealm() {

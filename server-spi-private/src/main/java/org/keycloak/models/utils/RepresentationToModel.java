@@ -192,6 +192,10 @@ public class RepresentationToModel {
 
     public static void importGroup(RealmModel realm, GroupModel parent, GroupRepresentation group) {
         GroupModel newGroup = realm.createGroup(group.getId(), group.getName(), parent);
+        if (group.getDisplayName() != null) {
+            newGroup.setDisplayName(group.getDisplayName());
+        }
+
         if (group.getAttributes() != null) {
             for (Map.Entry<String, List<String>> attr : group.getAttributes().entrySet()) {
                 newGroup.setAttribute(attr.getKey(), attr.getValue());

@@ -115,6 +115,7 @@ public class KeycloakModelUtilsTest {
         static boolean escapeSlashes = false;
 
         private String name;
+        private String displayName;
         private GroupModel parent;
 
         public GroupAdapterTest(String name, GroupModel parent) {
@@ -135,6 +136,16 @@ public class KeycloakModelUtilsTest {
         @Override
         public void setName(String name) {
             this.name = name;
+        }
+
+        @Override
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        @Override
+        public void setDisplayName(String displayName) {
+            this.displayName = displayName;
         }
 
         @Override

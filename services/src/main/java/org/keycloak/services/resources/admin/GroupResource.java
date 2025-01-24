@@ -33,6 +33,7 @@ import org.keycloak.models.ModelDuplicateException;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.models.utils.ModelToRepresentation;
+import org.keycloak.provider.Provider;
 import org.keycloak.representations.idm.GroupRepresentation;
 import org.keycloak.representations.idm.ManagementPermissionReference;
 import org.keycloak.representations.idm.UserRepresentation;
@@ -129,6 +130,10 @@ public class GroupResource {
             throw ErrorResponse.error("Invalid group id", Response.Status.BAD_REQUEST);
         }
 
+        if (rep.getGid() != null && rep.getGid() <= 0) {
+            throw ErrorResponse.error("Invalid group GID", Response.Status.BAD_REQUEST);
+        }
+
         if (!Objects.equals(groupName, group.getName())) {
             boolean exists = siblings().filter(s -> !Objects.equals(s.getId(), group.getId()))
                     .anyMatch(s -> Objects.equals(s.getName(), groupName));
@@ -136,7 +141,7 @@ public class GroupResource {
                 throw ErrorResponse.exists("Sibling group named '" + groupName + "' already exists.");
             }
         }
-        
+
         updateGroup(rep, group, realm, session);
         adminEvent.operation(OperationType.UPDATE).resourcePath(session.getContext().getUri()).representation(rep).success();
         
@@ -196,6 +201,12 @@ public class GroupResource {
     @Operation( summary = "Set or create child.", description = "This will just set the parent if it exists. Create it and set the parent if the group doesn’t exist.")
     public Response addChild(GroupRepresentation rep) {
         this.auth.groups().requireManage(group);
+
+        if (rep.getGid() != null) {
+            if (rep.getGid() <= 0) {
+                throw ErrorResponse.error("Invalid group GID", Response.Status.BAD_REQUEST);
+            }
+        }
 
         String groupName = rep.getName();
         if (ObjectUtil.isBlank(groupName)) {
@@ -260,6 +271,8 @@ public class GroupResource {
                 GroupPathChangeEvent.fire(model, newPath, previousPath, session);
             }
         }
+
+        if (rep.getDisplayName() != null) model.setDisplayName(rep.getDisplayName());
 
         if (rep.getAttributes() != null) {
             Set<String> attrsToRemove = new HashSet<>(model.getAttributes().keySet());

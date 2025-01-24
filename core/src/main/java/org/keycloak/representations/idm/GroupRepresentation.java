@@ -17,6 +17,8 @@
 
 package org.keycloak.representations.idm;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -29,11 +31,14 @@ import java.util.stream.Collectors;
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
  * @version $Revision: 1 $
  */
+@JsonIgnoreProperties({"totalMembers"})
 public class GroupRepresentation {
     // For an individual group these are the sufficient minimum fields
     // to identify a group and operate on it in a basic way
     protected String id;
+    protected Integer gid;
     protected String name;
+    protected String displayName;
     protected String path;
     protected String parentId;
     protected Long subGroupCount;
@@ -54,12 +59,28 @@ public class GroupRepresentation {
         this.id = id;
     }
 
+    public Integer getGid() {
+        return gid;
+    }
+
+    public void setGid(Integer gid) {
+        this.gid = gid;
+    }
+
     public String getName() {
         return name;
     }
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
     }
 
     public String getPath() {

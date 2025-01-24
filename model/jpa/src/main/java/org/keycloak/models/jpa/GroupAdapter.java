@@ -83,6 +83,16 @@ public class GroupAdapter implements GroupModel , JpaModel<GroupEntity> {
     }
 
     @Override
+    public String getDisplayName() {
+        return group.getDisplayName();
+    }
+
+    @Override
+    public void setDisplayName(String displayName) {
+        group.setDisplayName(displayName);
+    }
+
+    @Override
     public GroupModel getParent() {
         String parentId = this.getParentId();
         return parentId == null? null : realm.getGroupById(parentId);
