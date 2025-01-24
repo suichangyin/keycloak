@@ -77,6 +77,7 @@ public class RealmRepresentation {
     protected Boolean registrationAllowed;
     protected Boolean registrationEmailAsUsername;
     protected Boolean rememberMe;
+    protected Boolean nasCompatible;
     protected Boolean verifyEmail;
     protected Boolean loginWithEmailAllowed;
     protected Boolean duplicateEmailsAllowed;
@@ -628,6 +629,14 @@ public class RealmRepresentation {
 
     public void setRememberMe(Boolean rememberMe) {
         this.rememberMe = rememberMe;
+    }
+
+    public Boolean isNasCompatible() {
+        return nasCompatible;
+    }
+
+    public void setNasCompatible(Boolean nasCompatible) {
+        this.nasCompatible = nasCompatible;
     }
 
     public Boolean isVerifyEmail() {

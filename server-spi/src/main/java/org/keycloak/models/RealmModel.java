@@ -105,6 +105,10 @@ public interface RealmModel extends RoleContainerModel {
 
     void setRememberMe(boolean rememberMe);
 
+    boolean isNasCompatible();
+
+    void setNasCompatible(boolean nasCompatible);
+
     boolean isEditUsernameAllowed();
 
     void setEditUsernameAllowed(boolean editUsernameAllowed);

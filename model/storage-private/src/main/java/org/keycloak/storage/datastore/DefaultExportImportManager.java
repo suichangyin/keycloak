@@ -282,6 +282,7 @@ public class DefaultExportImportManager implements ExportImportManager {
         if (rep.isRegistrationEmailAsUsername() != null)
             newRealm.setRegistrationEmailAsUsername(rep.isRegistrationEmailAsUsername());
         if (rep.isRememberMe() != null) newRealm.setRememberMe(rep.isRememberMe());
+        if (rep.isNasCompatible() != null) newRealm.setNasCompatible(rep.isNasCompatible());
         if (rep.isVerifyEmail() != null) newRealm.setVerifyEmail(rep.isVerifyEmail());
         if (rep.isLoginWithEmailAllowed() != null) newRealm.setLoginWithEmailAllowed(rep.isLoginWithEmailAllowed());
         if (rep.isDuplicateEmailsAllowed() != null) newRealm.setDuplicateEmailsAllowed(rep.isDuplicateEmailsAllowed());
@@ -774,6 +775,7 @@ public class DefaultExportImportManager implements ExportImportManager {
         if (rep.isRegistrationEmailAsUsername() != null)
             realm.setRegistrationEmailAsUsername(rep.isRegistrationEmailAsUsername());
         if (rep.isRememberMe() != null) realm.setRememberMe(rep.isRememberMe());
+        if (rep.isNasCompatible() != null) realm.setNasCompatible(rep.isNasCompatible());
         if (rep.isVerifyEmail() != null) realm.setVerifyEmail(rep.isVerifyEmail());
         if (rep.isLoginWithEmailAllowed() != null) realm.setLoginWithEmailAllowed(rep.isLoginWithEmailAllowed());
         if (rep.isDuplicateEmailsAllowed() != null) realm.setDuplicateEmailsAllowed(rep.isDuplicateEmailsAllowed());

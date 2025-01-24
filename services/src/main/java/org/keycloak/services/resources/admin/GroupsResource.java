@@ -195,6 +195,18 @@ public class GroupsResource {
                 }
                 adminEvent.operation(OperationType.UPDATE).resourcePath(session.getContext().getUri());
             } else {
+                if (realm.isNasCompatible()) {
+                    // check duplicate group name
+                    boolean duplicateGroup = session.groups()
+                            .searchForGroupByNameStream(realm, rep.getName(), true, 0, Integer.MAX_VALUE - 1)
+                            .filter(g -> g.getName().equals(rep.getName()))
+                            .findFirst()
+                            .isPresent();
+                    if (duplicateGroup) {
+                        throw ErrorResponse.exists("Group exists with same name");
+                    }
+                }
+
                 child = realm.createGroup(groupName);
                 GroupResource.updateGroup(rep, child, realm, session);
                 URI uri = session.getContext().getUri().getAbsolutePathBuilder()

@@ -620,6 +620,16 @@ public class IdentityBrokerStateTestHelpers {
         }
 
         @Override
+        public boolean isNasCompatible() {
+            return false;
+        }
+
+        @Override
+        public void setNasCompatible(boolean nasCompatible) {
+
+        }
+
+        @Override
         public boolean isEditUsernameAllowed() {
             return false;
         }

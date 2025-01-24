@@ -81,6 +81,9 @@ public class RealmEntity {
     @Column(name="REMEMBER_ME")
     protected boolean rememberMe;
 
+    @Column(name="NAS_COMPATIBLE")
+    protected boolean nasCompatible;
+
     @Column(name="PASSWORD_POLICY")
     protected String passwordPolicy;
 
@@ -290,6 +293,14 @@ public class RealmEntity {
 
     public void setRememberMe(boolean rememberMe) {
         this.rememberMe = rememberMe;
+    }
+
+    public boolean isNasCompatible() {
+        return nasCompatible;
+    }
+
+    public void setNasCompatible(boolean nasCompatible) {
+        this.nasCompatible = nasCompatible;
     }
 
     public boolean isVerifyEmail() {

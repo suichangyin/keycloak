@@ -68,6 +68,7 @@ public class CachedRealm extends AbstractExtendableRevisioned {
     protected boolean registrationAllowed;
     protected boolean registrationEmailAsUsername;
     protected boolean rememberMe;
+    protected boolean nasCompatible;
     protected boolean verifyEmail;
     protected boolean loginWithEmailAllowed;
     protected boolean duplicateEmailsAllowed;
@@ -188,6 +189,7 @@ public class CachedRealm extends AbstractExtendableRevisioned {
         registrationAllowed = model.isRegistrationAllowed();
         registrationEmailAsUsername = model.isRegistrationEmailAsUsername();
         rememberMe = model.isRememberMe();
+        nasCompatible = model.isNasCompatible();
         verifyEmail = model.isVerifyEmail();
         loginWithEmailAllowed = model.isLoginWithEmailAllowed();
         duplicateEmailsAllowed = model.isDuplicateEmailsAllowed();
@@ -375,6 +377,10 @@ public class CachedRealm extends AbstractExtendableRevisioned {
 
     public boolean isRememberMe() {
         return this.rememberMe;
+    }
+
+    public boolean isNasCompatible() {
+        return this.nasCompatible;
     }
 
     public boolean isBruteForceProtected() {

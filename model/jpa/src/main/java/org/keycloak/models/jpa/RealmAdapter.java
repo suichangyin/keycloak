@@ -154,6 +154,17 @@ public class RealmAdapter implements StorageProviderRealmModel, JpaModel<RealmEn
     }
 
     @Override
+    public boolean isNasCompatible() {
+        return realm.isNasCompatible();
+    }
+
+    @Override
+    public void setNasCompatible(boolean nasCompatible) {
+        realm.setNasCompatible(nasCompatible);
+        em.flush();
+    }
+
+    @Override
     public boolean isRegistrationAllowed() {
         return realm.isRegistrationAllowed();
     }

@@ -87,6 +87,10 @@ public class RealmBean {
         return realm.isRememberMe();
     }
 
+    public boolean isNasCompatible() {
+        return realm.isNasCompatible();
+    }
+
     public boolean isInternationalizationEnabled() {
         return realm.isInternationalizationEnabled();
     }

@@ -124,6 +124,16 @@ public class RealmModelDelegate implements RealmModel {
         delegate.setRememberMe(rememberMe);
     }
 
+    @Override
+    public boolean isNasCompatible() {
+        return delegate.isNasCompatible();
+    }
+
+    @Override
+    public void setNasCompatible(boolean nasCompatible) {
+        delegate.setNasCompatible(nasCompatible);
+    }
+
     public boolean isEditUsernameAllowed() {
         return delegate.isEditUsernameAllowed();
     }

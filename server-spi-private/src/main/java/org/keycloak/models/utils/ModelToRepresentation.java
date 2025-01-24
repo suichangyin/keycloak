@@ -377,6 +377,7 @@ public class ModelToRepresentation {
         rep.setRegistrationAllowed(realm.isRegistrationAllowed());
         rep.setRegistrationEmailAsUsername(realm.isRegistrationEmailAsUsername());
         rep.setRememberMe(realm.isRememberMe());
+        rep.setNasCompatible(realm.isNasCompatible());
         rep.setBruteForceProtected(realm.isBruteForceProtected());
         rep.setPermanentLockout(realm.isPermanentLockout());
         rep.setMaxTemporaryLockouts(realm.getMaxTemporaryLockouts());

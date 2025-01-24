@@ -238,6 +238,18 @@ public class RealmAdapter implements CachedRealmModel {
     }
 
     @Override
+    public boolean isNasCompatible() {
+        if (isUpdated()) return updated.isNasCompatible();
+        return cached.isNasCompatible();
+    }
+
+    @Override
+    public void setNasCompatible(boolean nasCompatible) {
+        getDelegateForUpdate();
+        updated.setNasCompatible(nasCompatible);
+    }
+
+    @Override
     public String getDefaultSignatureAlgorithm() {
         if(isUpdated()) return updated.getDefaultSignatureAlgorithm();
         return cached.getDefaultSignatureAlgorithm();
