@@ -31,6 +31,7 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.storage.StorageId;
 import org.keycloak.storage.UserStorageProvider;
 import org.keycloak.storage.UserStoragePrivateUtil;
@@ -218,6 +219,11 @@ public class IpatuuraUserStorageProvider implements UserStorageProvider, UserLoo
         }
 
         return createUserInKeycloak(realm, username);
+    }
+
+    @Override
+    public UserModel addUser(RealmModel realm, String username, UserRepresentation rep) {
+        return addUser(realm, username);
     }
 
     @Override

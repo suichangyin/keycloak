@@ -44,6 +44,7 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.cache.UserCache;
 import org.keycloak.models.credential.PasswordUserCredentialModel;
 import org.keycloak.models.utils.TimeBasedOTP;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.storage.StorageId;
 import org.keycloak.storage.UserStorageProvider;
 import org.keycloak.storage.UserStorageUtil;
@@ -305,6 +306,11 @@ public class BackwardsCompatibilityUserStorage implements UserLookupProvider, Us
     public UserModel addUser(RealmModel realm, String username) {
         users.put(translateUserName(username), new MyUser(username));
         return createUser(realm, username);
+    }
+
+    @Override
+    public UserModel addUser(RealmModel realm, String username, UserRepresentation rep) {
+        return addUser(realm, username);
     }
 
     @Override

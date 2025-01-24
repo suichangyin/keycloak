@@ -65,6 +65,7 @@ import org.keycloak.models.cache.UserCache;
 import org.keycloak.models.utils.ComponentUtil;
 import org.keycloak.models.utils.ReadOnlyUserModelDelegate;
 import org.keycloak.organization.OrganizationProvider;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.storage.client.ClientStorageProvider;
 import org.keycloak.storage.datastore.DefaultDatastoreProvider;
 import org.keycloak.storage.federated.UserFederatedStorageProvider;
@@ -364,6 +365,20 @@ public class UserStorageManager extends AbstractStorageManager<UserStorageProvid
                 .filter(Objects::nonNull)
                 .findFirst()
                 .orElseGet(() -> localStorage().addUser(realm, username.toLowerCase()));
+    }
+
+    @Override
+    public UserModel addUser(RealmModel realm, String username, UserRepresentation rep) {
+        if (username.startsWith(ServiceAccountConstants.SERVICE_ACCOUNT_USER_PREFIX)) {
+            // Don't use federation for service account user
+            return localStorage().addUser(realm, username, rep);
+        }
+
+        return getEnabledStorageProviders(realm, UserRegistrationProvider.class)
+                .map(provider -> provider.addUser(realm, username))
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElseGet(() -> localStorage().addUser(realm, username.toLowerCase(), rep));
     }
 
     @Override

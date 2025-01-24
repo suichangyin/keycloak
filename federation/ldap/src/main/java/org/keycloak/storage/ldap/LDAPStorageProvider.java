@@ -39,6 +39,7 @@ import javax.naming.NamingException;
 import javax.naming.directory.SearchControls;
 
 import org.jboss.logging.Logger;
+import org.keycloak.authentication.RequiredActionProvider;
 import org.keycloak.common.constants.KerberosConstants;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.credential.CredentialAuthentication;
@@ -68,6 +69,9 @@ import org.keycloak.models.utils.ReadOnlyUserModelDelegate;
 import org.keycloak.policy.PasswordPolicyManagerProvider;
 import org.keycloak.policy.PolicyError;
 import org.keycloak.models.cache.UserCache;
+import org.keycloak.provider.ProviderFactory;
+import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.storage.DatastoreProvider;
 import org.keycloak.storage.StoreManagers;
 import org.keycloak.storage.ReadOnlyException;
@@ -342,6 +346,94 @@ public class LDAPStorageProvider implements UserStorageProvider,
                 .forEachOrdered(proxy::addRequiredAction);
 
         return proxy;
+    }
+
+    @Override
+    public UserModel addUser(RealmModel realm, String username, UserRepresentation rep) {
+        if (!synchronizeRegistrations()) {
+            return null;
+        }
+        final UserModel user;
+        if (model.isImportEnabled()) {
+            user = UserStoragePrivateUtil.userLocalStorage(session).addUser(realm, username, rep);
+            user.setFederationLink(model.getId());
+        } else {
+            user = new InMemoryUserAdapter(session, realm, new StorageId(model.getId(), username).getId());
+            user.setUsername(username);
+        }
+
+        setUserProperties(realm, user, rep);
+
+        LDAPObject ldapUser = LDAPUtils.addUserToLDAP(this, realm, user, ldapObject -> {
+            LDAPUtils.checkUuid(ldapObject, ldapIdentityStore.getConfig());
+            user.setSingleAttribute(LDAPConstants.LDAP_ID, ldapObject.getUuid());
+            user.setSingleAttribute(LDAPConstants.LDAP_ENTRY_DN, ldapObject.getDn().toString());
+        }, rep.getUid());
+
+        // Add the user to the default groups and add default required actions
+        UserModel proxy = proxy(realm, user, ldapUser, true);
+        proxy.grantRole(realm.getDefaultRole());
+
+        realm.getDefaultGroupsStream().forEach(proxy::joinGroup);
+
+        realm.getRequiredActionProvidersStream()
+                .filter(RequiredActionProviderModel::isEnabled)
+                .filter(RequiredActionProviderModel::isDefaultAction)
+                .map(RequiredActionProviderModel::getAlias)
+                .forEachOrdered(proxy::addRequiredAction);
+
+        return proxy;
+    }
+
+    private void setUserProperties(RealmModel realm, UserModel user, UserRepresentation rep) {
+        if (rep.getEmail() != null) {
+            String email = rep.getEmail();
+            user.setEmail(email);
+            if (realm.isRegistrationEmailAsUsername()) {
+                user.setUsername(email);
+            }
+        }
+
+        if (rep.getFirstName() != null)
+            user.setFirstName(rep.getFirstName());
+        if (rep.getLastName() != null)
+            user.setLastName(rep.getLastName());
+        if (rep.isEnabled() != null)
+            user.setEnabled(rep.isEnabled());
+        if (rep.isEmailVerified() != null)
+            user.setEmailVerified(rep.isEmailVerified());
+        if (rep.getFederationLink() != null)
+            user.setFederationLink(rep.getFederationLink());
+
+        List<String> reqActions = rep.getRequiredActions();
+        if (reqActions != null) {
+            Set<String> allActions = new HashSet<>();
+            session.getKeycloakSessionFactory()
+                    .getProviderFactoriesStream(RequiredActionProvider.class)
+                    .forEach(factory -> allActions.add(factory.getId()));
+            for (String action : allActions) {
+                if (reqActions.contains(action)) {
+                    user.addRequiredAction(action);
+                }
+            }
+        }
+
+        List<CredentialRepresentation> credentials = rep.getCredentials();
+        if (credentials != null) {
+            for (CredentialRepresentation credential : credentials) {
+                if (CredentialRepresentation.PASSWORD.equals(credential.getType()) && credential.isTemporary() != null
+                        && credential.isTemporary()) {
+                    logger.infof(" datatom -- User '%s' not require action UPDATE_PASSWORD ------- ", user.getUsername());
+                    // user.addRequiredAction(UserModel.RequiredAction.UPDATE_PASSWORD);
+                }
+            }
+        }
+
+        if (rep.getAttributes() != null) {
+            for (Map.Entry<String, List<String>> attr : rep.getAttributes().entrySet()) {
+                user.setAttribute(attr.getKey(), attr.getValue());
+            }
+        }
     }
 
     @Override

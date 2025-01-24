@@ -30,6 +30,7 @@ import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.models.credential.PasswordUserCredentialModel;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.storage.ReadOnlyException;
 import org.keycloak.storage.StorageId;
 import org.keycloak.storage.UserStoragePrivateUtil;
@@ -224,6 +225,11 @@ public class UserMapStorage implements UserLookupProvider, UserStorageProvider, 
 
         userPasswords.put(translateUserName(username), "");
         return createUser(realm, username);
+    }
+
+    @Override
+    public UserModel addUser(RealmModel realm, String username, UserRepresentation rep) {
+        return addUser(realm, username);
     }
 
     @Override

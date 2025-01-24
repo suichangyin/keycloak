@@ -45,6 +45,7 @@ import org.keycloak.models.jpa.entities.UserConsentEntity;
 import org.keycloak.models.jpa.entities.UserEntity;
 import org.keycloak.models.jpa.entities.UserGroupMembershipEntity;
 import org.keycloak.models.utils.KeycloakModelUtils;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.storage.StorageId;
 import org.keycloak.storage.UserStorageProvider;
 import org.keycloak.storage.client.ClientStorageProvider;
@@ -140,6 +141,11 @@ public class JpaUserProvider implements UserProvider, UserCredentialStore {
     @Override
     public UserModel addUser(RealmModel realm, String username) {
         return addUser(realm, KeycloakModelUtils.generateId(), username.toLowerCase(), true, true);
+    }
+
+    @Override
+    public UserModel addUser(RealmModel realm, String username, UserRepresentation rep) {
+        return addUser(realm, rep.getId() == null ? KeycloakModelUtils.generateId() : rep.getId(), username.toLowerCase(), true, true);
     }
 
     @Override

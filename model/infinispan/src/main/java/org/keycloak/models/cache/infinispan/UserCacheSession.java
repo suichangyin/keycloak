@@ -57,6 +57,7 @@ import org.keycloak.models.cache.infinispan.events.UserUpdatedEvent;
 import org.keycloak.models.cache.infinispan.stream.InIdentityProviderPredicate;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.models.utils.ReadOnlyUserModelDelegate;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.storage.CacheableStorageProviderModel;
 import org.keycloak.storage.DatastoreProvider;
 import org.keycloak.storage.StoreManagers;
@@ -834,6 +835,15 @@ public class UserCacheSession implements UserCache, OnCreateComponent, OnUpdateC
     @Override
     public UserModel addUser(RealmModel realm, String username) {
         UserModel user = getDelegate().addUser(realm, username);
+        // just in case the transaction is rolled back you need to invalidate the user and all cache queries for that user
+        fullyInvalidateUser(realm, user);
+        managedUsers.put(user.getId(), user);
+        return user;
+    }
+
+    @Override
+    public UserModel addUser(RealmModel realm, String username, UserRepresentation rep) {
+        UserModel user = getDelegate().addUser(realm, username, rep);
         // just in case the transaction is rolled back you need to invalidate the user and all cache queries for that user
         fullyInvalidateUser(realm, user);
         managedUsers.put(user.getId(), user);

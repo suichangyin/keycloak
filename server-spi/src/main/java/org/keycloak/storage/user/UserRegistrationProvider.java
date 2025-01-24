@@ -19,6 +19,7 @@ package org.keycloak.storage.user;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.representations.idm.UserRepresentation;
 
 /**
  * This is an optional capability interface that is intended to be implemented by any
@@ -43,6 +44,8 @@ public interface UserRegistrationProvider {
      * @return a model of created user
      */
     UserModel addUser(RealmModel realm, String username);
+
+    UserModel addUser(RealmModel realm, String username, UserRepresentation rep);
 
     /**
      * Called if user originated from this provider.

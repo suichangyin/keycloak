@@ -76,6 +76,10 @@ public class LDAPUtils {
         return addUserToLDAP(ldapProvider, realm, user, null);
     }
 
+    public static LDAPObject addUserToLDAP(LDAPStorageProvider ldapProvider, RealmModel realm, UserModel user, Consumer<LDAPObject> consumerOnCreated) {
+        return addUserToLDAP(ldapProvider, realm, user, consumerOnCreated, null);
+    }
+
     /**
      * Method that creates a user in the LDAP when all the attributes marked as
      * mandatory by the mappers are set. The method onRegisterUserToLDAP is
@@ -89,7 +93,7 @@ public class LDAPUtils {
      * @param consumerOnCreated The consumer to execute when the user is created
      * @return The LDAPObject created or to be created when mandatory attributes are filled
      */
-    public static LDAPObject addUserToLDAP(LDAPStorageProvider ldapProvider, RealmModel realm, UserModel user, Consumer<LDAPObject> consumerOnCreated) {
+    public static LDAPObject addUserToLDAP(LDAPStorageProvider ldapProvider, RealmModel realm, UserModel user, Consumer<LDAPObject> consumerOnCreated, Integer uid) {
         LDAPObject ldapUser = new LDAPObject();
 
         LDAPIdentityStore ldapStore = ldapProvider.getLdapIdentityStore();

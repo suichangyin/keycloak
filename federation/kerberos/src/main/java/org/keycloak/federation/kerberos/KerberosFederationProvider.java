@@ -36,6 +36,7 @@ import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserManager;
 import org.keycloak.models.credential.PasswordCredentialModel;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.storage.ReadOnlyException;
 import org.keycloak.storage.UserStoragePrivateUtil;
 import org.keycloak.storage.UserStorageProvider;
@@ -323,5 +324,10 @@ public class KerberosFederationProvider implements UserStorageProvider,
     public UserModel addUser(RealmModel realm, String username) {
         // no support for creating users
         return null;
+    }
+
+    @Override
+    public UserModel addUser(RealmModel realm, String username, UserRepresentation rep) {
+        return addUser(realm, username);
     }
 }
