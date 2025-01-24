@@ -1,0 +1,46 @@
+build:
+    idea:
+        ./mvnw -pl quarkus/deployment,quarkus/dist -am -DskipTests -Dmaven.build.cache.enabled=true clean install
+    
+run:
+    windows:
+        .\kc.bat start --http-enabled=true --hostname-strict=false --http-port=9535 --https-port=9536
+
+
+build run:
+    .\kc.bat start --http-enabled=true --hostname-strict=false --http-relative-path=/auth
+
+cankao: https://www.keycloak.org/server/all-config?f=build
+
+build parameter:
+    --http-relative-path
+        重建运行路径
+    --db
+        指定数据库类型（dev-file (default), dev-mem, mariadb, mssql, mysql, oracle, postgres）
+
+parameter:
+    basic:
+        --hostname-strict=false
+            不绑定主机名
+
+    http:
+        --http-enabled=true
+        http-enabled=true
+            开启http
+        --http-port=9090
+        http-port=9090
+        KEYCLOAK_HTTP_PORT=8080
+            指定http监听端口
+    
+    https:
+        --https-port=8443
+        https-port=8443
+        KEYCLOAK_HTTPS_PORT=8443
+            指定https监听端口
+        --http-key-store=/path/to/keystone.jks
+            指定key文件位置
+        --https-key-store-password=yourpassword
+            指定key密码
+
+创建管理员账户:
+    kc.sh|bat bootstrap-admin user [--username=value] [--password=value] [--no-prompt] [--expiration=value]

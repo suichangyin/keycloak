@@ -1,0 +1,3 @@
+- 修改默认租户名称，从master修改为default
+- 添加接口：
+  - 获取所有租户名称：/admin/realm-mames
