@@ -298,6 +298,7 @@ public class RealmManager {
             console.setSecret(secret);
             console.setStandardFlowEnabled(true);
             console.setDirectAccessGrantsEnabled(true);
+            console.setServiceAccountsEnabled(true);
         }
         ClientModel accountClient = realm.getClientByClientId(Constants.ACCOUNT_MANAGEMENT_CLIENT_ID);
         ClientModel datatomcloudClient = realm.getClientByClientId(id);
