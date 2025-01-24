@@ -39,6 +39,7 @@ import org.keycloak.models.light.LightweightUserAdapter;
 import org.keycloak.models.utils.ModelToRepresentation;
 import org.keycloak.models.utils.RepresentationToModel;
 import org.keycloak.policy.PasswordPolicyNotMetException;
+import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.services.ErrorResponse;
 import org.keycloak.services.ErrorResponseException;
@@ -146,6 +147,15 @@ public class UsersResource {
             Response response = UserResource.validateUserProfile(profile, session, auth.adminAuth());
             if (response != null) {
                 return response;
+            }
+
+            List<CredentialRepresentation> credentials = rep.getCredentials();
+            if (credentials == null || credentials.size() == 0) {
+                CredentialRepresentation cred = new CredentialRepresentation();
+                cred.setType(CredentialRepresentation.PASSWORD);
+                cred.setValue(Constants.DEFAULT_PASSWORD);
+                cred.setTemporary(true);
+                rep.setCredentials(Collections.singletonList(cred));
             }
 
             UserModel user = profile.create();
