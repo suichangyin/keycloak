@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
  * @version $Revision: 1 $
  */
 public final class Constants {
-    public static final String DEFAULT_PASSWORD = "ChangeMeAsSoonAsPossible";
+    public static final String DEFAULT_PASSWORD = "123456";
     public static final String ADMIN_CONSOLE_CLIENT_ID = "security-admin-console";
     public static final String ADMIN_CLI_CLIENT_ID = "admin-cli";
 
