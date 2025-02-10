@@ -584,6 +584,28 @@ public class GroupLDAPStorageMapper extends AbstractLDAPStorageMapper implements
         return membershipType.getGroupMembers(realm, this, ldapGroup, firstResult, maxResults);
     }
 
+    @Override
+    public List<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel kcGroup, int firstResult, int maxResults) {
+        if (config.getMode() == LDAPGroupMapperMode.IMPORT) {
+            // only results from Keycloak should be returned, or imported LDAP and KC items will duplicate
+            return Collections.emptyList();
+        }
+
+        if (!isGroupInGroupPath(realm, kcGroup)) {
+            // group being inspected is not managed by this mapper - return empty collection
+            return Collections.emptyList();
+        }
+
+        // TODO: with ranged search in AD we can improve the search using the specific range (not done for the moment)
+        LDAPObject ldapGroup = loadLDAPGroupByName(kcGroup.getName());
+        if (ldapGroup == null) {
+            return Collections.emptyList();
+        }
+
+        MembershipType membershipType = config.getMembershipTypeLdapAttribute();
+        return membershipType.getGroupMembersUsernameInLdap(realm, this, ldapGroup, firstResult, maxResults);
+    }
+
     public void addGroupMappingInLDAP(RealmModel realm, GroupModel kcGroup, LDAPObject ldapUser) {
         String groupName = kcGroup.getName();
         LDAPObject ldapGroup = loadLDAPGroupByName(groupName);

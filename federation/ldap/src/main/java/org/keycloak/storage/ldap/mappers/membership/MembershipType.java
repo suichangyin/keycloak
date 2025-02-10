@@ -24,6 +24,7 @@ import org.keycloak.storage.ldap.LDAPStorageProvider;
 import org.keycloak.storage.ldap.LDAPUtils;
 import org.keycloak.storage.ldap.idm.model.LDAPDn;
 import org.keycloak.storage.ldap.idm.model.LDAPObject;
+import org.keycloak.storage.ldap.mappers.membership.group.GroupLDAPStorageMapper;
 
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -80,6 +81,24 @@ public enum MembershipType {
             return ldapProvider.loadUsersByDNs(realm, userDns, firstResult, maxResults)
                     .collect(Collectors.toList());
         }
+
+        @Override
+        public List<String> getGroupMembersUsernameInLdap(RealmModel realm, GroupLDAPStorageMapper groupMapper, LDAPObject ldapGroup, int firstResult, int maxResults) {
+            LDAPStorageProvider ldapProvider = groupMapper.getLdapProvider();
+            CommonLDAPGroupMapperConfig config = groupMapper.getConfig();
+
+            LDAPConfig ldapConfig = ldapProvider.getLdapIdentityStore().getConfig();
+            LDAPDn usersDn = LDAPDn.fromString(ldapProvider.getLdapIdentityStore().getConfig().getUsersDn());
+            Set<LDAPDn> userDns = getLDAPMembersWithParent(ldapProvider, ldapGroup, config.getMembershipLdapAttribute(), usersDn, ldapConfig.getRdnLdapAttribute());
+
+            if (userDns == null || userDns.size() <= firstResult) {
+                return Collections.emptyList();
+            }
+
+            return ldapProvider.loadUsersByDNs(realm, userDns, firstResult, maxResults)
+                    .map(user -> user.getUsername())
+                    .collect(Collectors.toList());
+        }
     },
 
     /**
@@ -110,9 +129,30 @@ public enum MembershipType {
             return ldapProvider.loadUsersByUniqueAttribute(realm, membershipUserAttrName, memberUids, firstResult, maxResults)
                     .collect(Collectors.toList());
         }
+
+        @Override
+        public List<String> getGroupMembersUsernameInLdap(RealmModel realm, GroupLDAPStorageMapper groupMapper, LDAPObject ldapGroup, int firstResult, int maxResults) {
+            LDAPStorageProvider ldapProvider = groupMapper.getLdapProvider();
+            LDAPConfig ldapConfig = ldapProvider.getLdapIdentityStore().getConfig();
+
+            String memberAttrName = groupMapper.getConfig().getMembershipLdapAttribute();
+            Set<String> memberUids = LDAPUtils.getExistingMemberships(ldapProvider, memberAttrName, ldapGroup);
+
+            if (memberUids == null || memberUids.size() <= firstResult) {
+                return Collections.emptyList();
+            }
+
+            String membershipUserAttrName = groupMapper.getConfig().getMembershipUserLdapAttribute(ldapConfig);
+
+            return ldapProvider.loadUsersByUniqueAttribute(realm, membershipUserAttrName, memberUids, firstResult, maxResults)
+                    .map(u -> u.getUsername())
+                    .collect(Collectors.toList());
+        }
     };
 
     public abstract Set<LDAPDn> getLDAPSubgroups(CommonLDAPGroupMapper groupMapper, LDAPObject ldapGroup);
 
     public abstract List<UserModel> getGroupMembers(RealmModel realm, CommonLDAPGroupMapper groupMapper, LDAPObject ldapGroup, int firstResult, int maxResults);
+
+    public abstract List<String> getGroupMembersUsernameInLdap(RealmModel realm, GroupLDAPStorageMapper groupMapper, LDAPObject ldapGroup, int firstResult, int maxResults);
 }

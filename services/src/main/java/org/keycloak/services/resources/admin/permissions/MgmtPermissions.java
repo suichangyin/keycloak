@@ -61,7 +61,7 @@ import org.keycloak.utils.RoleResolveUtil;
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
  * @version $Revision: 1 $
  */
-class MgmtPermissions implements AdminPermissionEvaluator, AdminPermissionManagement, RealmsPermissionEvaluator {
+public class MgmtPermissions implements AdminPermissionEvaluator, AdminPermissionManagement, RealmsPermissionEvaluator {
     protected RealmModel realm;
     protected KeycloakSession session;
     protected AuthorizationProvider authz;

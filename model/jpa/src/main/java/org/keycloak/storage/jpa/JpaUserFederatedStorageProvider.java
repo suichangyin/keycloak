@@ -483,6 +483,14 @@ public class JpaUserFederatedStorageProvider implements
 
         return closing(paginateQuery(query, firstResult, max).getResultStream());
     }
+
+    @Override
+    public Stream<String> getMembershipNoGroupStream(RealmModel realm, Integer firstResult, Integer max) {
+        TypedQuery<String> query = em.createNamedQuery("fedgroupMembershipNoGroup", String.class)
+                .setParameter("realmId", realm.getId());
+
+        return closing(paginateQuery(query, firstResult, max).getResultStream());
+    }
     
     @Override
     public Stream<String> getRoleMembersStream(RealmModel realm, RoleModel role, Integer firstResult, Integer max) {

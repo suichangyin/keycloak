@@ -354,8 +354,28 @@ public class BackwardsCompatibilityUserStorage implements UserLookupProvider, Us
     }
 
     @Override
+    public Stream<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group) {
+        return Stream.empty();
+    }
+
+    @Override
+    public Stream<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group, Integer firstResult, Integer maxResults) {
+        return Stream.empty();
+    }
+
+    @Override
     public Stream<UserModel> getGroupMembersStream(RealmModel realm, GroupModel group) {
         // Assume that this is not supported
+        return Stream.empty();
+    }
+
+    @Override
+    public Stream<UserModel> getUsersNoGroupStream(RealmModel realm) {
+        return Stream.empty();
+    }
+
+    @Override
+    public Stream<UserModel> getUsersNoGroupStream(RealmModel realm, int firstResult, int maxResults) {
         return Stream.empty();
     }
 

@@ -23,8 +23,10 @@ import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.utils.StringUtil;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -201,6 +203,14 @@ public interface UserQueryMethodsProvider {
         return groupMembers;
     }
 
+    Stream<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group);
+
+    Stream<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group, Integer firstResult, Integer maxResults);
+
+    Stream<UserModel> getUsersNoGroupStream(RealmModel realm);
+
+    Stream<UserModel> getUsersNoGroupStream(RealmModel realm, int firstResult, int maxResults);
+
     /**
      * Obtains users that have the specified role.
      *
@@ -234,4 +244,5 @@ public interface UserQueryMethodsProvider {
      * @return a non-null {@link Stream} of users that match the search criteria.
      */
     Stream<UserModel> searchForUserByUserAttributeStream(RealmModel realm, String attrName, String attrValue);
+
 }

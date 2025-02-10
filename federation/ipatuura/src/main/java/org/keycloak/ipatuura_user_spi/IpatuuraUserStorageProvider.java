@@ -269,6 +269,26 @@ public class IpatuuraUserStorageProvider implements UserStorageProvider, UserLoo
     }
 
     @Override
+    public Stream<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group) {
+        return Stream.empty();
+    }
+
+    @Override
+    public Stream<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group, Integer firstResult, Integer maxResults) {
+        return Stream.empty();
+    }
+
+    @Override
+    public Stream<UserModel> getUsersNoGroupStream(RealmModel realm) {
+        return Stream.empty();
+    }
+
+    @Override
+    public Stream<UserModel> getUsersNoGroupStream(RealmModel realm, int firstResult, int maxResults) {
+        return Stream.empty();
+    }
+
+    @Override
     public int getUsersCount(RealmModel realm) {
         Ipatuura ipatuura = this.ipatuura;
 

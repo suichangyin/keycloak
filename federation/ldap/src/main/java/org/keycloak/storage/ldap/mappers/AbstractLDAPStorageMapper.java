@@ -65,6 +65,11 @@ public abstract class AbstractLDAPStorageMapper implements LDAPStorageMapper {
     }
 
     @Override
+    public List<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group, int firstResult, int maxResults) {
+        return Collections.emptyList();
+    }
+
+    @Override
     public List<UserModel> getRoleMembers(RealmModel realm, RoleModel role, int firstResult, int maxResults) {
         return Collections.emptyList();
     }

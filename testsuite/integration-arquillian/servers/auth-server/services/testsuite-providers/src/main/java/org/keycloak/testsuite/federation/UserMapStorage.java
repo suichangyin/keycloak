@@ -43,12 +43,15 @@ import org.keycloak.storage.user.UserLookupProvider;
 import org.keycloak.storage.user.UserQueryProvider;
 import org.keycloak.storage.user.UserRegistrationProvider;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.keycloak.storage.UserStorageProviderModel.IMPORT_ENABLED;
@@ -349,6 +352,37 @@ public class UserMapStorage implements UserLookupProvider, UserStorageProvider, 
     public Stream<UserModel> getGroupMembersStream(RealmModel realm, GroupModel group, Integer firstResult, Integer maxResults) {
         return getMembershipStream(realm, group, firstResult == null ? -1 : firstResult, maxResults == null ? -1 : maxResults)
           .map(userName -> createUser(realm, userName));
+    }
+
+    @Override
+    public Stream<String> getMembershipNoGroupStream(RealmModel realm, Integer firstResult, Integer max) {
+        return userGroups.entrySet().stream()
+                .filter(me -> me.getValue() == null || me.getValue().isEmpty())
+                .map(Map.Entry::getKey)
+                .filter(realmUser -> realmUser.startsWith(realm.getId()))
+                .map(realmUser -> realmUser.substring(realmUser.indexOf("/") + 1))
+                .skip(firstResult)
+                .limit(max);
+    }
+
+    @Override
+    public Stream<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group) {
+        return Stream.empty();
+    }
+
+    @Override
+    public Stream<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group, Integer firstResult, Integer maxResults) {
+        return Stream.empty();
+    }
+
+    @Override
+    public Stream<UserModel> getUsersNoGroupStream(RealmModel realm) {
+        return Stream.empty();
+    }
+
+    @Override
+    public Stream<UserModel> getUsersNoGroupStream(RealmModel realm, int firstResult, int maxResults) {
+        return Stream.empty();
     }
 
     @Override

@@ -47,7 +47,10 @@ import org.keycloak.representations.idm.MembershipType;
         @NamedQuery(name="deleteUserGroupMembershipsByRealmAndLink", query="delete from  UserGroupMembershipEntity mapping where mapping.user IN (select u from UserEntity u where u.realmId=:realmId and u.federationLink=:link)"),
         @NamedQuery(name="deleteUserGroupMembershipsByGroup", query="delete from UserGroupMembershipEntity m where m.groupId = :groupId"),
         @NamedQuery(name="deleteUserGroupMembershipsByUser", query="delete from UserGroupMembershipEntity m where m.user = :user"),
-        @NamedQuery(name="userCountInGroups", query="select count(m.user) from UserGroupMembershipEntity m where m.user.realmId = :realmId and m.groupId in :groupIds")
+        @NamedQuery(name="userCountInGroups", query="select count(m.user) from UserGroupMembershipEntity m where m.user.realmId = :realmId and m.groupId in :groupIds"),
+        @NamedQuery(name="usersNoGroup", query="select u from UserEntity u left join UserGroupMembershipEntity mapping ON u.id = mapping.user.id " +
+                "where u.realmId=:realmId and u.federationLink is null and u.serviceAccountClientLink is null and mapping.groupId is null"),
+        @NamedQuery(name="groupMembershipUsername", query="select g.user.username from UserGroupMembershipEntity g where g.groupId = :groupId order by g.user.username"),
 })
 @Table(name="USER_GROUP_MEMBERSHIP")
 @Entity

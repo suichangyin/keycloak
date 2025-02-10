@@ -70,6 +70,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -731,6 +732,32 @@ public class JpaUserProvider implements UserProvider, UserCredentialStore {
         query.setParameter("groupId", group.getId());
 
         return closing(paginateQuery(query, first, max).getResultStream().map(user -> new UserAdapter(session, realm, em, user)));
+    }
+
+    @Override
+    public Stream<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group) {
+        return getGroupMembersUsernameInProvider(realm, group, 0, Integer.MAX_VALUE);
+    }
+
+    @Override
+    public Stream<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group, Integer firstResult, Integer maxResults) {
+        TypedQuery<String> query = em.createNamedQuery("groupMembershipUsername", String.class);
+        query.setParameter("groupId", group.getId());
+
+        return closing(paginateQuery(query, firstResult, maxResults).getResultStream());
+    }
+
+    @Override
+    public Stream<UserModel> getUsersNoGroupStream(RealmModel realm) {
+        return getUsersNoGroupStream(realm, 0, Integer.MAX_VALUE);
+    }
+
+    @Override
+    public Stream<UserModel> getUsersNoGroupStream(RealmModel realm, int firstResult, int maxResults) {
+        TypedQuery<UserEntity> query = em.createNamedQuery("usersNoGroup", UserEntity.class);
+        query.setParameter("realmId", realm.getId());
+
+        return closing(paginateQuery(query, firstResult, maxResults).getResultStream().map(user -> new UserAdapter(session, realm, em, user)));
     }
 
     @Override

@@ -486,6 +486,26 @@ public class UserCacheSession implements UserCache, OnCreateComponent, OnUpdateC
     }
 
     @Override
+    public Stream<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group) {
+        return getDelegate().getGroupMembersUsernameInProvider(realm, group);
+    }
+
+    @Override
+    public Stream<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group, Integer firstResult, Integer maxResults) {
+        return getDelegate().getGroupMembersUsernameInProvider(realm, group, firstResult, maxResults);
+    }
+
+    @Override
+    public Stream<UserModel> getUsersNoGroupStream(RealmModel realm) {
+        return getDelegate().getUsersNoGroupStream(realm);
+    }
+
+    @Override
+    public Stream<UserModel> getUsersNoGroupStream(RealmModel realm, int firstResult, int maxResults) {
+        return getDelegate().getUsersNoGroupStream(realm, firstResult, maxResults);
+    }
+
+    @Override
     public Stream<UserModel> getRoleMembersStream(RealmModel realm, RoleModel role, Integer firstResult, Integer maxResults) {
         return getDelegate().getRoleMembersStream(realm, role, firstResult, maxResults);
     }

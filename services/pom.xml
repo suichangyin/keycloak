@@ -255,6 +255,11 @@
         	<groupId>org.keycloak</groupId>
         	<artifactId>keycloak-config-api</artifactId>
         </dependency>
+
+        <dependency>
+            <groupId>com.github.stuxuhai</groupId>
+            <artifactId>jpinyin</artifactId>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

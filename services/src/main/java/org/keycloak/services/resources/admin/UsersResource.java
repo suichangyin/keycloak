@@ -16,6 +16,13 @@
  */
 package org.keycloak.services.resources.admin;
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import com.github.stuxuhai.jpinyin.PinyinException;
+import com.github.stuxuhai.jpinyin.PinyinFormat;
+import com.github.stuxuhai.jpinyin.PinyinHelper;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.InternalServerErrorException;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
@@ -24,6 +31,7 @@ import org.jboss.logging.Logger;
 import org.jboss.resteasy.reactive.NoCache;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.common.Profile;
+import org.keycloak.common.util.ObjectUtil;
 import org.keycloak.events.admin.OperationType;
 import org.keycloak.events.admin.ResourceType;
 import org.keycloak.models.Constants;
@@ -33,6 +41,7 @@ import org.keycloak.models.ModelDuplicateException;
 import org.keycloak.models.ModelException;
 import org.keycloak.models.ModelIllegalStateException;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserManager;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.models.light.LightweightUserAdapter;
@@ -43,8 +52,10 @@ import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.services.ErrorResponse;
 import org.keycloak.services.ErrorResponseException;
+import org.keycloak.services.managers.BruteForceProtector;
 import org.keycloak.services.resources.KeycloakOpenAPI;
 import org.keycloak.services.resources.admin.permissions.AdminPermissionEvaluator;
+import org.keycloak.services.resources.admin.permissions.MgmtPermissions;
 import org.keycloak.services.resources.admin.permissions.UserPermissionEvaluator;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileProvider;
@@ -64,15 +75,24 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 import java.text.MessageFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -465,7 +485,6 @@ public class UsersResource {
     /**
      * Get representation of the user
      *
-     * @param id User id
      * @return
      */
     @Path("profile")
@@ -501,5 +520,316 @@ public class UsersResource {
                     userRep.setAccess(usersEvaluator.getAccess(user));
                     return userRep;
                 });
+    }
+
+    public static class User {
+        @JsonUnwrapped
+        private UserRepresentation rep;
+        private String createdTime;
+
+        public User(UserRepresentation rep) {
+            this.rep = rep;
+
+            if (rep.getCreatedTimestamp() != null) {
+                this.createdTime = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
+                        .withZone(ZoneId.systemDefault())
+                        .format(Instant.ofEpochMilli(rep.getCreatedTimestamp()));
+            }
+        }
+
+        public String getCreatedTime() {
+            return createdTime;
+        }
+    }
+
+    public static String getName(UserModel user) {
+        String name = "";
+        if (ObjectUtil.isBlank(user.getLastName()) && ObjectUtil.isBlank(user.getFirstName())) {
+            name = user.getUsername();
+        } else {
+            if (!ObjectUtil.isBlank(user.getLastName())) {
+                name = user.getLastName();
+            }
+            if (!ObjectUtil.isBlank(user.getFirstName())) {
+                name += user.getFirstName();
+            }
+        }
+
+        return name;
+    }
+
+    public static boolean searchUserByName(UserModel user, CharSequence search) {
+        if (user.getUsername().contains(search)) {
+            return true;
+        }
+
+        String name = "";
+        if (!ObjectUtil.isBlank(user.getLastName())) {
+            name += user.getLastName();
+        }
+        if (!ObjectUtil.isBlank(user.getFirstName())) {
+            name += user.getFirstName();
+        }
+
+        return name.contains(search);
+    }
+
+    public static class IndexComparator implements Comparator<String> {
+        @Override
+        public int compare(String s1, String s2) {
+            if (s1.equals(s2)) {
+                return 0;
+            }
+            if (s1.equals("#")) {
+                return 1;
+            }
+            if (s2.equals("#")) {
+                return -1;
+            }
+            return s1.compareTo(s2);
+        }
+    }
+
+    @Path("all")
+    @GET
+    @NoCache
+    @Produces(MediaType.APPLICATION_JSON)
+    public Map<String, List<User>> getAllUsers(@QueryParam("search") String search,
+                                               @QueryParam("ungrouped") Boolean ungrouped,
+                                               @QueryParam("enabled") Boolean enabled,
+                                               @QueryParam("briefRepresentation") Boolean briefRepresentation) {
+        auth.users().requireQuery();
+
+        List<Predicate<UserModel>> predicates = new ArrayList<>();
+        if (ungrouped != null && ungrouped) {
+            predicates.add(u -> u.getGroupsCount() == 0);
+        }
+        if (enabled != null) {
+            predicates.add(u -> u.isEnabled() == enabled);
+        }
+        if (!ObjectUtil.isBlank(search)) {
+            CharSequence seq = search.trim();
+            predicates.add(((Predicate<UserModel>) u -> searchUserByName(u, seq))
+                    .or(u -> u.getEmail() != null && u.getEmail().contains(seq))
+                    .or(u -> u.getId().contains(seq)));
+        }
+
+        Predicate<UserModel> filter = predicates.stream().reduce(u -> true, Predicate::and);
+        Supplier<Stream<UserModel>> sup = () -> session.users().searchForUserStream(realm, Collections.emptyMap()).filter(filter);
+
+        Map<String, String> idNameMap = new HashMap<>();
+        sup.get().forEach(u -> {
+            idNameMap.put(u.getId(), getName(u));
+        });
+
+        Map<String, String> pinyin = new HashMap<>();
+        for (Map.Entry<String, String> entry : idNameMap.entrySet()) {
+            try {
+                pinyin.put(entry.getKey(), PinyinHelper.convertToPinyinString(entry.getValue(), "", PinyinFormat.WITH_TONE_NUMBER));
+            } catch (PinyinException e) {
+                e.printStackTrace();
+                return Collections.<String, List<User>>emptyMap();
+            }
+        }
+
+        Comparator<UserModel> sortByPinyin = Comparator.comparing(u -> Collections.unmodifiableMap(pinyin).get(u.getId()));
+        Comparator<UserModel> sortByName = Comparator.comparing(u -> getName(u));
+        Comparator<UserModel> sortByUserName = Comparator.comparing(u -> u.getUsername());
+
+        boolean briefRep = briefRepresentation != null && briefRepresentation;
+        Map<String, List<User>> results = new TreeMap<>(new IndexComparator());
+        sup.get().sorted(sortByPinyin.thenComparing(sortByName).thenComparing(sortByUserName))
+                .forEach(u -> {
+                    UserRepresentation rep = briefRep ? ModelToRepresentation.toBriefRepresentation(u) : ModelToRepresentation.toRepresentation(session, realm, u);
+                    if (session.getProvider(BruteForceProtector.class).isTemporarilyDisabled(session, realm, u)) {
+                        rep.setEnabled(false);
+                    }
+                    char c = pinyin.get(u.getId()).charAt(0);
+                    if (!Character.isLetter(c)) {
+                        c = '#';
+                    }
+                    String s = Character.toString(Character.toUpperCase(c));
+                    List<User> users = results.get(s);
+                    if (users == null) {
+                        users = new LinkedList<>();
+                    }
+                    users.add(new User(rep));
+                    results.put(s, users);
+                });
+
+        return results;
+    }
+
+    @Path("all/count")
+    @GET
+    @NoCache
+    @Produces(MediaType.APPLICATION_JSON)
+    public Map<String, Long> getAllUsersCount(@QueryParam("search") String search,
+                                              @QueryParam("enabled") Boolean enabled,
+                                              @QueryParam("ungrouped") Boolean ungrouped) {
+        auth.users().requireQuery();
+
+        List<Predicate<UserModel>> predicates = new ArrayList<>();
+        if (ungrouped != null && ungrouped) {
+            predicates.add(u -> u.getGroupsCount() == 0);
+        }
+        if (enabled != null) {
+            predicates.add(u -> u.isEnabled() == enabled);
+        }
+        if (!ObjectUtil.isBlank(search)) {
+            CharSequence seq = search.trim();
+            predicates.add(((Predicate<UserModel>) u -> searchUserByName(u, seq))
+                    .or(u -> u.getEmail() != null && u.getEmail().contains(seq))
+                    .or(u -> u.getId().contains(seq)));
+        }
+
+        Predicate<UserModel> filter = predicates.stream().reduce(u -> true, Predicate::and);
+        return Collections.singletonMap("count", session.users().searchForUserStream(realm, Collections.emptyMap()).filter(filter).count());
+    }
+
+    @Path("all2")
+    @GET
+    @NoCache
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<User> getAll2Users(@QueryParam("search") String search,
+                                   @QueryParam("ungrouped") Boolean ungrouped,
+                                   @QueryParam("first") Integer firstResult,
+                                   @QueryParam("max") Integer maxResults,
+                                   @QueryParam("briefRepresentation") Boolean briefRepresentation) {
+        UserPermissionEvaluator userPermissionEvaluator = auth.users();
+
+        userPermissionEvaluator.requireQuery();
+
+        List<User> results = new LinkedList<>();
+
+        Integer finalFirstResult = firstResult != null ? firstResult : -1;
+        Integer finalMaxResults = maxResults != null ? maxResults : Constants.DEFAULT_MAX_RESULTS;
+
+        Supplier<Stream<UserModel>> sup;
+        try {
+            if (ungrouped != null && ungrouped) {
+                Integer finalFirstResult1 = finalFirstResult == -1 ? 0 : finalFirstResult;
+                sup = () -> session.users().getUsersNoGroupStream(realm)
+                        .filter(u -> search == null ||
+                                u.getUsername().toLowerCase().contains(search.trim().toLowerCase()) ||
+                                (u.getFirstName() != null && u.getFirstName().toLowerCase().contains(search.trim().toLowerCase())) ||
+                                (u.getLastName() != null && u.getLastName().toLowerCase().contains(search.trim().toLowerCase())) ||
+                                (u.getFirstName() != null && u.getLastName() != null && (u.getLastName() + u.getFirstName()).toLowerCase().contains(search.trim().toLowerCase())) ||
+                                (u.getEmail() != null && u.getEmail().toLowerCase().contains(search.trim().toLowerCase())))
+                        .sorted(Comparator.comparing(UserModel::getUsername))
+                        .skip(finalFirstResult1)
+                        .limit(finalMaxResults);
+            } else {
+                if (search != null) {
+                    sup = () -> session.users().searchForUserStream(realm, Map.of(UserModel.SEARCH, search), finalFirstResult, finalMaxResults);
+                } else {
+                    sup = () -> session.users().searchForUserStream(realm, Collections.emptyMap(), finalFirstResult, finalMaxResults);
+                }
+            }
+
+
+            boolean briefRep = briefRepresentation != null && briefRepresentation;
+
+            sup.get().forEach(u -> {
+                UserRepresentation rep = briefRep ? ModelToRepresentation.toBriefRepresentation(u) : ModelToRepresentation.toRepresentation(session, realm, u);
+                if (session.getProvider(BruteForceProtector.class).isTemporarilyDisabled(session, realm, u)) {
+                    rep.setEnabled(false);
+                }
+                results.add(new User(rep));
+            });
+
+//        } catch (LdapAuthenticationException e) {
+//            throw new InternalServerErrorException("Error when trying to connect to LDAP, please check the ldap configuration.");
+        } catch (Exception e) {
+            throw new InternalServerErrorException("Error when trying to connect to LDAP, please check the ldap configuration.");
+        }
+
+        return results;
+    }
+
+    @Path("all2/count")
+    @GET
+    @NoCache
+    @Produces(MediaType.APPLICATION_JSON)
+    public Map<String, Integer> getAll2UsersCount(@QueryParam("search") String search,
+                                                  @QueryParam("ungrouped") @DefaultValue("false") Boolean ungrouped) {
+        auth.users().requireQuery();
+
+        int result;
+
+        try {
+            if (ungrouped) {
+                result = (int) session.users().getUsersNoGroupStream(realm)
+                        .filter(u -> search == null || search.trim().isEmpty() ||
+                                u.getUsername().toLowerCase().contains(search.trim().toLowerCase()) ||
+                                (u.getFirstName() != null && u.getFirstName().toLowerCase().contains(search.trim().toLowerCase())) ||
+                                (u.getLastName() != null && u.getLastName().toLowerCase().contains(search.trim().toLowerCase())) ||
+                                (u.getFirstName() != null && u.getLastName() != null && (u.getLastName() + u.getFirstName()).toLowerCase().contains(search.trim().toLowerCase())) ||
+                                (u.getEmail() != null && u.getEmail().toLowerCase().contains(search.trim().toLowerCase())))
+                        .count();
+            } else {
+                if (search == null || search.trim().isEmpty()) {
+                    result = session.users().getUsersCount(realm);
+                } else {
+                    result = session.users().getUsersCount(realm, Map.of(UserModel.SEARCH, search));
+                }
+            }
+//        } catch (LdapAuthenticationException e) {
+//            throw new InternalServerErrorException("Error when trying to connect to LDAP, please check the ldap configuration.");
+        } catch (Exception e) {
+            throw new InternalServerErrorException("Error when trying to connect to LDAP, please check the ldap configuration.");
+        }
+
+        return Collections.singletonMap("count", result);
+    }
+
+    /**
+     * Delete users
+     *
+     * @param ids
+     * @return
+     */
+    @DELETE
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response deleteUsers(final List<String> ids) {
+        auth.users().requireManage();
+
+        for (String id : ids) {
+            UserModel user = session.users().getUserById(realm, id);
+            if (user == null) {
+                // we do this to make sure somebody can't phish ids
+                if (auth.users().canQuery()) {
+                    throw new NotFoundException(String.format("User with ID %s not found", id));
+                } else {
+                    throw new ForbiddenException();
+                }
+            }
+
+            if (auth instanceof MgmtPermissions && ((MgmtPermissions) auth).admin().equals(user)) {
+                throw ErrorResponse.error("You are not allowed to delete your account.", Response.Status.BAD_REQUEST);
+            }
+
+            Set<GroupModel> groups = user.getGroupsStream().collect(Collectors.toSet());
+            for (GroupModel group : groups) {
+                try {
+                    user.leaveGroup(group);
+                } catch (ModelException e) {
+                    if (e.getMessage().equals("Not possible to delete LDAP group mappings as mapper mode is READ_ONLY")) {
+                        break;
+                    }
+
+                    throw ErrorResponse.error(e.getMessage(), Response.Status.INTERNAL_SERVER_ERROR);
+                }
+            }
+
+            boolean removed = new UserManager(session).removeUser(realm, user);
+            if (!removed) {
+                throw ErrorResponse.error(String.format("User with ID %s couldn't be deleted", id), Response.Status.BAD_REQUEST);
+            }
+
+            adminEvent.operation(OperationType.DELETE).resourcePath(session.getContext().getUri(), id).success();
+        }
+
+        return Response.noContent().build();
     }
 }

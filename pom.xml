@@ -137,6 +137,9 @@
         <xstream.version>1.4.20</xstream.version>
         <org.snakeyaml.snakeyaml-engine.version>2.6</org.snakeyaml.snakeyaml-engine.version>
 
+        <!-- JPinyin -->
+        <jpinyin.version>1.1.8</jpinyin.version>
+
         <!-- Others -->
         <commons-lang.version>2.6</commons-lang.version>
         <apacheds.version>2.0.0.AM26</apacheds.version>
@@ -1288,6 +1291,11 @@
                 <version>${infinispan.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>com.github.stuxuhai</groupId>
+                <artifactId>jpinyin</artifactId>
+                <version>${jpinyin.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

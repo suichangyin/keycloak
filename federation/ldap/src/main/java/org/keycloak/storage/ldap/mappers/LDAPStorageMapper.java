@@ -56,6 +56,8 @@ public interface LDAPStorageMapper extends Provider {
      */
     List<UserModel> getGroupMembers(RealmModel realm, GroupModel group, int firstResult, int maxResults);
 
+    List<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group, int firstResult, int maxResults);
+    
     /**
      * Return empty list if doesn't support storing of roles
      * @param realm

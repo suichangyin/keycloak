@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -498,6 +499,48 @@ public class LDAPStorageProvider implements UserStorageProvider,
             .filter(((Predicate<List>) List::isEmpty).negate())
             .map(List::stream)
             .findFirst().orElse(Stream.empty());
+    }
+
+    @Override
+    public Stream<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group) {
+        return null;
+    }
+
+    @Override
+    public Stream<String> getGroupMembersUsernameInProvider(RealmModel realm, GroupModel group, Integer firstResult, Integer maxResults) {
+        int first = firstResult == null ? 0 : firstResult;
+        int max = maxResults == null ? DEFAULT_MAX_RESULTS : maxResults;
+
+        return realm.getComponentsStream(model.getId(), LDAPStorageMapper.class.getName())
+                .sorted(ldapMappersComparator.sortAsc())
+                .map(mapperModel ->
+                        mapperManager.getMapper(mapperModel).getGroupMembersUsernameInProvider(realm, group, first, max))
+                .filter(((Predicate<List>) List::isEmpty).negate())
+                .map(List::stream)
+                .findFirst().orElse(Stream.empty());
+    }
+
+    @Override
+    public Stream<UserModel> getUsersNoGroupStream(RealmModel realm) {
+        return getUsersNoGroupStream(realm, 0, Integer.MAX_VALUE);
+    }
+
+    @Override
+    public Stream<UserModel> getUsersNoGroupStream(RealmModel realm, int firstResult, int maxResults) {
+        Set<String> groupLdapUsers = new HashSet<>();
+        session.groups().getGroupsStream(realm)
+                .forEach(groupModel -> {
+                    groupLdapUsers.addAll(getGroupMembersUsernameInProvider(realm, groupModel)
+                            .map(u -> u.toLowerCase())
+                            .collect(Collectors.toSet()));
+                });
+
+        return session.users().searchForUserStream(realm, Collections.emptyMap())
+                .filter(u -> u.getFederationLink() != null && model.getId().equals(u.getFederationLink()))
+                .filter(u -> !groupLdapUsers.contains(u.getUsername()))
+                .sorted(Comparator.comparing(UserModel::getUsername))
+                .skip(firstResult)
+                .limit(maxResults);
     }
 
     @Override

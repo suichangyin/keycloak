@@ -664,6 +664,12 @@
             <groupId>org.twitter4j</groupId>
             <artifactId>twitter4j-core</artifactId>
         </dependency>
+
+        <!-- pinyin -->
+        <dependency>
+            <groupId>com.github.stuxuhai</groupId>
+            <artifactId>jpinyin</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
