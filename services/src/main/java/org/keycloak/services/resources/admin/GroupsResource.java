@@ -107,7 +107,11 @@ public class GroupsResource {
         }
 
         if (populateHierarchy) {
-            return GroupUtils.populateGroupHierarchyFromSubGroups(session, realm, stream, !briefRepresentation, groupsEvaluator);
+            if (Objects.nonNull(searchQuery) || Objects.nonNull(search)) {
+                return GroupUtils.populateGroupHierarchyFromSubGroups(session, realm, stream, !briefRepresentation, groupsEvaluator);
+            } else {
+                return GroupUtils.populateGroupHierarchyFromParentGroups(stream, !briefRepresentation, groupsEvaluator);
+            }
         }
         boolean canViewGlobal = groupsEvaluator.canView();
         return stream

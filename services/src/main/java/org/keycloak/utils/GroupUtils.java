@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
+
+import org.jboss.logging.Logger;
 import org.keycloak.models.GroupModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
@@ -15,6 +17,8 @@ import org.keycloak.services.resources.admin.permissions.GroupPermissionEvaluato
 
 public class GroupUtils {
 
+    private final static Logger logger = Logger.getLogger(GroupUtils.class);
+
     /**
      * This method takes the provided groups and attempts to load their parents all the way to the root group while maintaining the hierarchy data
      * for each GroupRepresentation object. Each resultant GroupRepresentation object in the stream should contain relevant subgroups to the originally
@@ -24,7 +28,11 @@ public class GroupUtils {
      * @param groups The groups that we want to populate the hierarchy for
      * @return A stream of groups that contain all relevant groups from the root down with no extra siblings
      */
-    public static Stream<GroupRepresentation> populateGroupHierarchyFromSubGroups(KeycloakSession session, RealmModel realm, Stream<GroupModel> groups, boolean full, GroupPermissionEvaluator groupEvaluator) {
+    public static Stream<GroupRepresentation> populateGroupHierarchyFromSubGroups(KeycloakSession session,
+                                                                                  RealmModel realm,
+                                                                                  Stream<GroupModel> groups,
+                                                                                  boolean full,
+                                                                                  GroupPermissionEvaluator groupEvaluator) {
         Map<String, GroupRepresentation> groupIdToGroups = new HashMap<>();
         groups.forEach(group -> {
             //TODO GROUPS do permissions work in such a way that if you can view the children you can definitely view the parents?
@@ -61,6 +69,52 @@ public class GroupUtils {
             }
         });
         return groupIdToGroups.values().stream().sorted(Comparator.comparing(GroupRepresentation::getName));
+    }
+
+    /**
+     * This method takes the provided groups and attempts to load their subGroups all the way to the leaf group while maintaining the hierarchy data
+     * for each GroupRepresentation object. Each resultant GroupRepresentation object in the stream should contain relevant subgroups to the originally
+     * provided groups
+     * @param groups The groups that we want to populate the hierarchy for
+     * @return A stream of groups that contain all relevant groups from the root down with no extra siblings
+     */
+    public static Stream<GroupRepresentation> populateGroupHierarchyFromParentGroups(Stream<GroupModel> groups,
+                                                                                     boolean full,
+                                                                                     GroupPermissionEvaluator groupEvaluator) {
+        Map<String, GroupRepresentation> groupIdToGroups = new HashMap<>();
+
+        groups.forEach(group -> {
+            if (!groupEvaluator.canView() && !groupEvaluator.canView(group)) {
+                return;
+            }
+
+            GroupRepresentation currGroup = toRepresentation(groupEvaluator, group, full);
+            populateSubGroupCount(group, currGroup);
+            groupIdToGroups.putIfAbsent(currGroup.getId(), currGroup);
+
+            recursivelyPopulateSubGroups(group, currGroup, full, groupEvaluator);
+        });
+
+        return groupIdToGroups.values().stream().sorted(Comparator.comparing(GroupRepresentation::getName));
+    }
+
+    private static void recursivelyPopulateSubGroups(GroupModel parentGroup,
+                                                     GroupRepresentation parentGroupRep,
+                                                     boolean full,
+                                                     GroupPermissionEvaluator groupEvaluator) {
+        parentGroup.getSubGroupsStream()
+            .forEach(subGroup -> {
+                if (!groupEvaluator.canView() && !groupEvaluator.canView(subGroup)) {
+                    return;
+                }
+
+                GroupRepresentation subGroupRep = toRepresentation(groupEvaluator, subGroup, full);
+                populateSubGroupCount(subGroup, subGroupRep);
+
+                parentGroupRep.getSubGroups().add(subGroupRep);
+
+                recursivelyPopulateSubGroups(subGroup, subGroupRep, full, groupEvaluator);
+            });
     }
 
     /**
