@@ -88,6 +88,7 @@ import org.keycloak.storage.ReadOnlyException;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.userprofile.ValidationException;
+import org.keycloak.utils.GroupUtils;
 import org.keycloak.utils.ProfileHelper;
 
 import jakarta.ws.rs.BadRequestException;
@@ -985,12 +986,13 @@ public class UserResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Tag(name = KeycloakOpenAPI.Admin.Tags.USERS)
     @Operation()
-    public Stream<GroupRepresentation> groupMembership(@QueryParam("search") String search,
+    public Stream<GroupResource.Group> groupMembership(@QueryParam("search") String search,
                                                        @QueryParam("first") Integer firstResult,
                                                        @QueryParam("max") Integer maxResults,
                                                        @QueryParam("briefRepresentation") @DefaultValue("true") boolean briefRepresentation) {
         auth.users().requireView(user);
-        return user.getGroupsStream(search, firstResult, maxResults).map(g -> ModelToRepresentation.toRepresentation(g, !briefRepresentation));
+        return user.getGroupsStream(search, firstResult, maxResults)
+                .map(g -> new GroupResource.Group(session, realm, g, briefRepresentation));
     }
 
     @GET
@@ -1011,6 +1013,68 @@ public class UserResource {
         Map<String, Long> map = new HashMap<>();
         map.put("count", results);
         return map;
+    }
+
+    @GET
+    @NoCache
+    @Path("groups2")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Tag(name = KeycloakOpenAPI.Admin.Tags.USERS)
+    @Operation()
+    public Stream<GroupResource.Group> groupMembership2(@QueryParam("search") String search,
+                                                      @QueryParam("first") Integer firstResult,
+                                                      @QueryParam("max") Integer maxResults,
+                                                      @QueryParam("briefRepresentation") @DefaultValue("true") boolean briefRepresentation) {
+        auth.users().requireView(user);
+
+        firstResult = Objects.nonNull(firstResult) ? firstResult : 0;
+        maxResults = Objects.nonNull(maxResults) ? maxResults : Integer.MAX_VALUE;
+
+        return user.getGroupsStream(search, firstResult, maxResults)
+                .map(g -> new GroupResource.Group(session, realm, g, briefRepresentation));
+    }
+
+    @GET
+    @NoCache
+    @Path("groups2/count")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Map<String, Long> getGroupMembership2Count(@QueryParam("search") String search) {
+        auth.users().requireView(user);
+
+        Long results;
+
+        if (Objects.nonNull(search)) {
+            results = user.getGroupsCountByNameContaining(search);
+        } else {
+            results = user.getGroupsCount();
+        }
+        Map<String, Long> map = new HashMap<>();
+        map.put("count", results);
+        return map;
+    }
+
+    @GET
+    @Path("groups/available")
+    @NoCache
+    @Produces(MediaType.APPLICATION_JSON)
+    public Stream<GroupRepresentation> groupMembershipAvailable() {
+        auth.users().requireView(user);
+        auth.groups().requireList();
+
+//        return ModelToRepresentation.toAvaiableGroupHierarchy(realm, user);
+        return GroupUtils.populateGroupHierarchyFromParentGroups(session.groups().getTopLevelGroupsStream(realm), false, auth.groups());
+    }
+
+    @GET
+    @Path("groups/available2")
+    @NoCache
+    @Produces(MediaType.APPLICATION_JSON)
+    public Stream<GroupRepresentation> groupMembershipAvailable2() {
+        auth.users().requireView(user);
+        auth.groups().requireList();
+
+//        return ModelToRepresentation.toAvaiableGroupHierarchy(realm, user);
+        return GroupUtils.populateGroupHierarchyFromParentGroups(session.groups().getTopLevelGroupsStream(realm), false, auth.groups());
     }
 
     @DELETE

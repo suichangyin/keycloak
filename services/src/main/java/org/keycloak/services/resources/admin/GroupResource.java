@@ -16,6 +16,7 @@
  */
 package org.keycloak.services.resources.admin;
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.github.stuxuhai.jpinyin.PinyinException;
 import com.github.stuxuhai.jpinyin.PinyinFormat;
 import com.github.stuxuhai.jpinyin.PinyinHelper;
@@ -102,6 +103,39 @@ public class GroupResource {
         this.auth = auth;
         this.adminEvent = adminEvent.resource(ResourceType.GROUP);
         this.group = group;
+    }
+
+    public static class Group {
+        @JsonUnwrapped
+        private GroupRepresentation rep;
+        private long totalMembers;
+
+        public Group(GroupRepresentation rep) {
+            this.rep = rep;
+        }
+
+        public Group(GroupRepresentation rep, int totalMembers) {
+            this.rep = rep;
+            this.totalMembers = totalMembers;
+        }
+
+        public Group(KeycloakSession session, RealmModel realm, GroupModel group) {
+            this(session, realm, group, true);
+        }
+
+        public Group(KeycloakSession session, RealmModel realm, GroupModel group, boolean briefRepresentation) {
+            this.rep = ModelToRepresentation.toGroupHierarchy(group, !briefRepresentation);
+//            this.totalMembers = getGroupMemberIds(session, realm, group).size();
+            this.totalMembers = getGroupAllMembersCount(session, realm, group, false, null);
+        }
+
+        public void setAccess(Map<String, Boolean> access) {
+            this.rep.setAccess(access);
+        }
+
+        public long getTotalMembers() {
+            return totalMembers;
+        }
     }
 
      /**
