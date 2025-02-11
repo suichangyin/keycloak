@@ -21,6 +21,10 @@ import org.keycloak.models.CredentialValidationOutput;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Stream;
+
 /**
  * This is an optional capability interface that is intended to be implemented by any
  * <code>UserStorageProvider</code> that supports basic user querying. You must
@@ -56,6 +60,11 @@ public interface UserLookupProvider {
      * by case 
      */
     UserModel getUserByUsername(RealmModel realm, String username);
+
+    // TODO: Simple adaptation, and then improve performance by querying once later
+    default Stream<UserModel> getUsersByUsernames(RealmModel realm, Set<String> usernames) {
+        return usernames.stream().map(username -> getUserByUsername(realm, username));
+    }
 
     default CredentialValidationOutput getUserByCredential(RealmModel realm, CredentialInput input) {
         return null;
