@@ -82,7 +82,7 @@ public class ApplianceBootstrap {
         realm.addRequiredCredential(CredentialRepresentation.PASSWORD);
         realm.setDefaultSignatureAlgorithm(Constants.DEFAULT_SIGNATURE_ALGORITHM);
         realm.setSsoSessionIdleTimeout(1800);
-        realm.setAccessTokenLifespan(60);
+        realm.setAccessTokenLifespan(600);
         realm.setAccessTokenLifespanForImplicitFlow(Constants.DEFAULT_ACCESS_TOKEN_LIFESPAN_FOR_IMPLICIT_FLOW_TIMEOUT);
         realm.setSsoSessionMaxLifespan(36000);
         realm.setOfflineSessionIdleTimeout(Constants.DEFAULT_OFFLINE_SESSION_IDLE_TIMEOUT);
