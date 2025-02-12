@@ -45,7 +45,6 @@ import static org.keycloak.models.Constants.IS_TEMP_ADMIN_ATTR_NAME;
  * @version $Revision: 1 $
  */
 public class ApplianceBootstrap {
-
     private final KeycloakSession session;
 
     public ApplianceBootstrap(KeycloakSession session) {
@@ -108,6 +107,10 @@ public class ApplianceBootstrap {
                 attr.setRequired(null);
             }
         }
+
+        // enable attribute policy by default
+        upConfig.setUnmanagedAttributePolicy(UPConfig.UnmanagedAttributePolicy.ENABLED);
+
         UserProfileProvider.setConfiguration(upConfig);
 
         return true;

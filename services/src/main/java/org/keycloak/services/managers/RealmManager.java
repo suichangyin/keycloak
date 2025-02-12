@@ -59,6 +59,7 @@ import org.keycloak.representations.idm.OAuthClientRepresentation;
 import org.keycloak.representations.idm.RealmEventsConfigRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
+import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.sessions.AuthenticationSessionProvider;
 import org.keycloak.storage.StoreMigrateRepresentationEvent;
 import org.keycloak.storage.StoreSyncEvent;
@@ -68,6 +69,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+
+import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.utils.ReservedCharValidator;
 import org.keycloak.utils.StringUtil;
 
@@ -739,6 +742,12 @@ public class RealmManager {
             }
 
             session.clientPolicy().updateRealmModelFromRepresentation(realm, rep);
+
+            // enable attribute policy by default
+            UserProfileProvider userProfileProvider = session.getProvider(UserProfileProvider.class);
+            UPConfig upConfig = userProfileProvider.getConfiguration();
+            upConfig.setUnmanagedAttributePolicy(UPConfig.UnmanagedAttributePolicy.ENABLED);
+            userProfileProvider.setConfiguration(upConfig);
 
             fireRealmPostCreate(realm);
         } finally {
