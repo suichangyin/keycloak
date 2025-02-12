@@ -21,6 +21,7 @@ import org.keycloak.Config;
 import org.keycloak.common.crypto.CryptoIntegration;
 import org.keycloak.config.ConfigProviderFactory;
 import org.keycloak.exportimport.ExportImportManager;
+import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.KeycloakSessionTask;
@@ -153,7 +154,7 @@ public abstract class KeycloakApplication extends Application {
                 if (bootstrapState.newInstall) {
                     if (!exportImportManager.isImportMasterIncluded()) {
                         applianceBootstrap.createMasterRealm();
-                        applianceBootstrap.createMasterRealmUser("admin", "123456");
+                        applianceBootstrap.createMasterRealmUser("admin", Constants.DEFAULT_PASSWORD);
                     }
                     // these are also running in the initial bootstrap transaction - if there is a problem, the server won't be initialized at all
                     exportImportManager.runImport();
