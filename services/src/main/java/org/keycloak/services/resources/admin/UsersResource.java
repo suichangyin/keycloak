@@ -16,6 +16,7 @@
  */
 package org.keycloak.services.resources.admin;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.github.stuxuhai.jpinyin.PinyinException;
 import com.github.stuxuhai.jpinyin.PinyinFormat;
@@ -527,6 +528,9 @@ public class UsersResource {
         private UserRepresentation rep;
         private String createdTime;
 
+        public User() {
+        }
+
         public User(UserRepresentation rep) {
             this.rep = rep;
 
@@ -535,6 +539,11 @@ public class UsersResource {
                         .withZone(ZoneId.systemDefault())
                         .format(Instant.ofEpochMilli(rep.getCreatedTimestamp()));
             }
+        }
+
+        @JsonIgnore
+        public UserRepresentation getUser() {
+            return rep;
         }
 
         public String getCreatedTime() {

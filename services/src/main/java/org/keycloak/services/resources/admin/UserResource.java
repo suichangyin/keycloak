@@ -171,14 +171,15 @@ public class UserResource {
     /**
      * Update the user
      *
-     * @param rep
+     * @param repUser
      * @return
      */
     @PUT
     @Consumes(MediaType.APPLICATION_JSON)
     @Tag(name = KeycloakOpenAPI.Admin.Tags.USERS)
     @Operation( summary = "Update the user")
-    public Response updateUser(final UserRepresentation rep) {
+    public Response updateUser(final UsersResource.User repUser) {
+        UserRepresentation rep = repUser.getUser();
 
         auth.users().requireManage(user);
         try {
@@ -327,7 +328,7 @@ public class UserResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Tag(name = KeycloakOpenAPI.Admin.Tags.USERS)
     @Operation( summary = "Get representation of the user")
-    public UserRepresentation getUser(
+    public UsersResource.User getUser(
             @Parameter(description = "Indicates if the user profile metadata should be added to the response") @QueryParam("userProfileMetadata") boolean userProfileMetadata
     ) {
         auth.users().requireView(user);
@@ -350,7 +351,7 @@ public class UserResource {
             rep.setUserProfileMetadata(null);
         }
 
-        return rep;
+        return new UsersResource.User(rep);
     }
 
     /**
