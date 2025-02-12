@@ -40,6 +40,7 @@ import org.keycloak.models.utils.ModelToRepresentation;
 import org.keycloak.representations.idm.ClientMappingsRepresentation;
 import org.keycloak.representations.idm.MappingsRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
+import org.keycloak.representations.idm.RolesRepresentation;
 import org.keycloak.services.ErrorResponse;
 import org.keycloak.services.ErrorResponseException;
 import org.keycloak.services.resources.KeycloakOpenAPI;
@@ -62,6 +63,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -113,6 +115,147 @@ public class RoleMapperResource {
         this.viewPermission = viewCheck;
         this.headers = session.getContext().getRequestHeaders();
 
+    }
+
+    /**
+     * Add realm-level & client-level role mappings to the group/user
+     *
+     * @param roles Roles to add
+     */
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    public void addRoleMappings(final RolesRepresentation roles) {
+        managePermission.require();
+
+        logger.debugv("** addRoleMappings: {0}", roles);
+
+        List<RoleRepresentation> realmRoles = roles.getRealm();
+        if (Objects.nonNull(realmRoles)) {
+            for (RoleRepresentation role : realmRoles) {
+                RoleModel roleModel = realm.getRole(role.getName());
+                if (roleModel == null || !roleModel.getId().equals(role.getId())) {
+                    throw new NotFoundException("Role not found");
+                }
+                auth.roles().requireMapRole(roleModel);
+                roleMapper.grantRole(roleModel);
+            }
+        }
+
+        Map<String, List<RoleRepresentation>> clientRoles = roles.getClient();
+        if (Objects.nonNull(clientRoles)) {
+            for (String clientId : clientRoles.keySet()) {
+                ClientModel clientModel = realm.getClientById(clientId);
+                if (clientModel == null) {
+                    throw new NotFoundException("Client not found");
+                }
+
+                if (Objects.nonNull(clientRoles.get(clientId))) {
+                    for (RoleRepresentation role : clientRoles.get(clientId)) {
+                        RoleModel roleModel = clientModel.getRole(role.getName());
+                        if (roleModel == null || !roleModel.getId().equals(role.getId())) {
+                            throw new NotFoundException("Role not found");
+                        }
+                        auth.roles().requireMapRole(roleModel);
+                        roleMapper.grantRole(roleModel);
+                    }
+                }
+            }
+        }
+
+        adminEvent.operation(OperationType.CREATE).resourcePath(session.getContext().getUri()).representation(roles).success();
+    }
+
+    /**
+     * Get effective realm-level & client-level role mappings
+     *
+     * This will recurse all composite roles to get the result.
+     *
+     * @return
+     */
+    @Path("composite")
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @NoCache
+    public MappingsRepresentation getCompositeRoleMappings() {
+        viewPermission.require();
+
+        List<RoleRepresentation> realmMappingsRep = realm.getRolesStream()
+                .filter(r -> roleMapper.hasRole(r))
+                .map(r -> ModelToRepresentation.toBriefRepresentation(r))
+                .collect(Collectors.toList());
+
+        ClientMappingsRepresentation clientMappings;
+        Map<String, ClientMappingsRepresentation> appMappings = new HashMap<>();
+        for (ClientModel clientModel : realm.getClientsStream().collect(Collectors.toList())) {
+            // TODO: Is there other ways to improve performance?
+            // ignore realm client role to improve interface performance
+            if (clientModel.getClientId().contains("-realm")) {
+                continue;
+            }
+
+            List<RoleRepresentation> mappings = clientModel.getRolesStream()
+                    .filter(r -> roleMapper.hasRole(r))
+                    .map(r -> ModelToRepresentation.toBriefRepresentation(r))
+                    .collect(Collectors.toList());
+
+            if (mappings.size() != 0) {
+                clientMappings = new ClientMappingsRepresentation();
+                clientMappings.setId(clientModel.getId());
+                clientMappings.setClient(clientModel.getClientId());
+                clientMappings.setMappings(mappings);
+                appMappings.put(clientModel.getClientId(), clientMappings);
+            }
+        }
+
+        MappingsRepresentation all = new MappingsRepresentation();
+        all.setRealmMappings(realmMappingsRep);
+        all.setClientMappings(appMappings);
+
+        return all;
+    }
+
+    /**
+     * Get realm-level & client-level roles that can be mapped
+     *
+     * @return
+     */
+    @Path("available")
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @NoCache
+    public MappingsRepresentation getAvailableRoleMappings() {
+        viewPermission.require();
+
+        List<RoleRepresentation> realmRoles = realm.getRolesStream()
+                .filter(r -> canMapRole(r))
+                .filter(r -> !roleMapper.getRealmRoleMappingsStream().anyMatch(r::equals))
+                .map(r -> ModelToRepresentation.toBriefRepresentation(r))
+                .collect(Collectors.toList());
+
+
+        Map<String, ClientMappingsRepresentation> appMappings = new HashMap<>();
+
+        realm.getClientsStream().forEach(client -> {
+            List<RoleRepresentation> clientRoles = client.getRolesStream().filter(r -> canMapRole(r))
+                    .filter(r -> !roleMapper.getClientRoleMappingsStream(client).anyMatch(r::equals))
+                    .map(r -> ModelToRepresentation.toBriefRepresentation(r))
+                    .collect(Collectors.toList());
+
+            if (!clientRoles.isEmpty()) {
+                ClientMappingsRepresentation mappings = new ClientMappingsRepresentation();
+                mappings.setId(client.getId());
+                mappings.setClient(client.getClientId());
+                mappings.setMappings(clientRoles);
+
+                appMappings.put(client.getClientId(), mappings);
+            }
+        });
+
+        MappingsRepresentation available = new MappingsRepresentation();
+        available.setRealmMappings(realmRoles);
+        available.setClientMappings(appMappings);
+
+        return available;
     }
 
     /**
