@@ -137,11 +137,9 @@ public class RealmManager {
         setupAdminConsole(realm);
         setupAdminConsoleLocaleMapper(realm);
         setupAdminCli(realm);
-        if (realm.getName().equals(Config.getAdminRealm())) {
-            setupUnicornAdminConsole(realm);
-            setupUnicornAccountConsole(realm);
-            setupDatatomcloudClient(realm, "--createDefaultRealm", "--createDefaultRealm--");
-        }
+        setupUnicornAdminConsole(realm);
+        setupUnicornAccountConsole(realm);
+        setupDatatomcloudClient(realm, "--createDefaultRealm", "--createDefaultRealm--");
         setupImpersonationService(realm);
         setupAuthenticationFlows(realm);
         setupRequiredActions(realm);
@@ -712,6 +710,14 @@ public class RealmManager {
 
             if (postponeAdminCliSetup) {
                 setupAdminCli(realm);
+            }
+
+            if (!hasClient(rep, Constants.UNICORN_ADMIN_CONSOLE_CLIENT_ID)) {
+                setupUnicornAdminConsole(realm);
+            }
+            if (!hasClient(rep, Constants.UNICORN_ACCOUNT_CONSOLE_CLIENT_ID)) {
+                setupUnicornAccountConsole(realm);
+                setupDatatomcloudClient(realm, "--importRealm", "--importRealm--");
             }
 
             setupAuthenticationFlows(realm);
