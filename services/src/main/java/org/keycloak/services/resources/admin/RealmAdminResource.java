@@ -22,11 +22,14 @@ import java.io.InputStream;
 import java.security.cert.X509Certificate;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -65,6 +68,7 @@ import org.keycloak.client.clienttype.ClientTypeManager;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.common.Profile;
 import org.keycloak.common.VerificationException;
+import org.keycloak.common.util.ObjectUtil;
 import org.keycloak.common.util.PemUtils;
 import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.events.EventQuery;
@@ -87,6 +91,7 @@ import org.keycloak.models.ModelException;
 import org.keycloak.models.ModelIllegalStateException;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
+import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
@@ -105,6 +110,7 @@ import org.keycloak.representations.idm.GroupRepresentation;
 import org.keycloak.representations.idm.ManagementPermissionReference;
 import org.keycloak.representations.idm.RealmEventsConfigRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
+import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.services.ErrorResponse;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.managers.RealmManager;
@@ -120,6 +126,8 @@ import org.keycloak.storage.StoreSyncEvent;
 import org.keycloak.utils.GroupUtils;
 import org.keycloak.utils.ProfileHelper;
 import org.keycloak.utils.ReservedCharValidator;
+
+import static org.keycloak.services.resources.admin.RoleResource.ScopedRole;
 
 /**
  * Base resource class for the admin REST api of one realm
@@ -359,6 +367,205 @@ public class RealmAdminResource {
     @Path("roles")
     public RoleContainerResource getRoleContainerResource() {
         return new RoleContainerResource(session, session.getContext().getUri(), realm, auth, realm, adminEvent);
+    }
+
+    /**
+     * return all realm-level & client-level roles
+     * @return
+     */
+    @GET
+    @NoCache
+    @Path("all-roles")
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<ScopedRole> getAllRoles(@QueryParam("search") String search,
+                                                     @QueryParam("first") Integer firstResult,
+                                                     @QueryParam("max") Integer maxResults,
+                                                     @QueryParam("briefRepresentation") @DefaultValue("true") boolean briefRepresentation) {
+        auth.roles().requireList(realm);
+
+        firstResult = firstResult != null && firstResult >= 0 ? firstResult : 0;
+        maxResults = maxResults != null ? maxResults : Constants.DEFAULT_MAX_RESULTS;
+
+        Stream<RoleModel> roleModelsStream;
+        if (!ObjectUtil.isBlank(search)) {
+            roleModelsStream = realm.searchForRolesStream(search.trim(), -1, -1);
+        } else {
+            roleModelsStream = realm.getRolesStream();
+        }
+
+        List<ScopedRole> roles = new ArrayList<>();
+        roleModelsStream.forEach(r -> {
+            if (briefRepresentation) {
+                roles.add(new ScopedRole("", ModelToRepresentation.toBriefRepresentation(r)));
+            } else {
+                roles.add(new ScopedRole("", ModelToRepresentation.toRepresentation(r)));
+            }
+        });
+
+        for (ClientModel clientModel : realm.getClientsStream().collect(Collectors.toList())) {
+            if (clientModel.getClientId().contains("-realm")) {
+                continue;
+            }
+
+            if (roles.size() > firstResult + maxResults) {
+                break;
+            }
+
+            if (!ObjectUtil.isBlank(search)) {
+                roleModelsStream = clientModel.searchForRolesStream(search.trim(), -1, -1);
+            } else {
+                roleModelsStream = clientModel.getRolesStream();
+            }
+
+            roleModelsStream.forEach(r -> {
+                if (briefRepresentation) {
+                    roles.add(new ScopedRole(clientModel.getClientId(), ModelToRepresentation.toBriefRepresentation(r)));
+                } else {
+                    roles.add(new ScopedRole(clientModel.getClientId(), ModelToRepresentation.toRepresentation(r)));
+                }
+            });
+        }
+
+
+        return roles.stream()
+                .skip(firstResult)
+                .limit(maxResults)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * return count of all realm-level & client-level roles
+     * @return
+     */
+    @GET
+    @NoCache
+    @Path("all-roles/count")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Map<String, Long> getAllRolesCount(@QueryParam("search") @DefaultValue("") String search) {
+        Long count;
+        if (!ObjectUtil.isBlank(search)) {
+            count = realm.searchForRolesStream(search.trim(), -1, -1).count();
+        } else {
+            count = realm.getRolesStream().count();
+        }
+
+        count += realm.getClientsStream().mapToLong(c -> {
+            if (c.getClientId().contains("-realm")) {
+                return 0;
+            }
+
+            if (!ObjectUtil.isBlank(search)) {
+                return c.searchForRolesStream(search.trim(), -1, -1).count();
+            } else {
+                return c.getRolesStream().count();
+            }
+        }).sum();
+
+        return Collections.singletonMap("count", count);
+    }
+
+    /**
+     * return default realm-level & client-level roles
+     * @return
+     */
+    @GET
+    @NoCache
+    @Path("default-roles")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Stream<ScopedRole> getDefaultRoles(@QueryParam("briefRepresentation") @DefaultValue("true") boolean briefRepresentation) {
+        auth.roles().requireList(realm);
+
+        return realm.getDefaultRole().getCompositesStream().map(r -> {
+            String scope = r.isClientRole() ? realm.getClientById(r.getContainerId()).getClientId() : "";
+            RoleRepresentation roleRepresentation = briefRepresentation ?
+                    ModelToRepresentation.toBriefRepresentation(r) : ModelToRepresentation.toRepresentation(r);
+            return new ScopedRole(scope, roleRepresentation);
+        });
+    }
+
+    /**
+     * add default realm-level & client-level roles
+     * @return
+     */
+    @POST
+    @Path("default-roles")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public void addDefaultRoles(List<ScopedRole> roles) {
+        auth.roles().requireList(realm);
+
+        RoleModel defaultRole = realm.getDefaultRole();
+        roles.stream().forEach(r -> {
+            auth.roles().canMapComposite(defaultRole);
+            defaultRole.addCompositeRole(realm.getRoleById(r.getRole().getId()));
+        });
+    }
+
+    /**
+     * update default realm-level & client-level roles
+     * @return
+     */
+    @PUT
+    @Path("default-roles")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public void updateDefaultRoles(List<ScopedRole> roles) {
+        auth.roles().requireList(realm);
+
+        RoleModel defaultRole = realm.getDefaultRole();
+
+        defaultRole.getCompositesStream().forEach(r -> defaultRole.removeCompositeRole(r));
+        roles.stream().forEach(r -> {
+            auth.roles().canMapComposite(defaultRole);
+            defaultRole.addCompositeRole(realm.getRoleById(r.getRole().getId()));
+        });
+    }
+
+    /**
+     * delete default realm-level & client-level roles
+     * @return
+     */
+    @DELETE
+    @Path("default-roles")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public void removeDefaultRoles(List<ScopedRole> roles) {
+        auth.roles().requireList(realm);
+
+        RoleModel defaultRole = realm.getDefaultRole();
+        roles.stream().forEach(r -> {
+            auth.roles().canMapComposite(defaultRole);
+            defaultRole.removeCompositeRole(realm.getRoleById(r.getRole().getId()));
+        });
+    }
+
+    /**
+     * return available realm-level & client-level roles for default roles
+     * @return
+     */
+    @GET
+    @NoCache
+    @Path("default-roles/available")
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<ScopedRole> getAvailableRolesForDefault(@QueryParam("briefRepresentation") @DefaultValue("true") boolean briefRepresentation) {
+        auth.roles().requireList(realm);
+
+        final Set<RoleModel> defaultRoles = realm.getDefaultRole().getCompositesStream().collect(Collectors.toSet());
+        List<ScopedRole> realmRoles = realm.getRolesStream()
+                .filter(r -> !defaultRoles.contains(r))
+                .map(r -> briefRepresentation ? ModelToRepresentation.toBriefRepresentation(r) : ModelToRepresentation.toRepresentation(r))
+                .map(r -> new ScopedRole("", r))
+                .collect(Collectors.toList());
+
+        List<List<ScopedRole>> clientRoles = new ArrayList<>();
+        List<ClientModel> clientModels = realm.getClientsStream().collect(Collectors.toList());
+        for (ClientModel clientModel : clientModels) {
+            List<ScopedRole> roles = clientModel.getRolesStream()
+                    .filter(r -> !defaultRoles.contains(r))
+                    .map(r -> briefRepresentation ? ModelToRepresentation.toBriefRepresentation(r) : ModelToRepresentation.toRepresentation(r))
+                    .map(r -> new ScopedRole(clientModel.getClientId(), r))
+                    .collect(Collectors.toList());
+            clientRoles.add(roles);
+        }
+
+        return Stream.concat(realmRoles.stream(), clientRoles.stream().flatMap(r -> r.stream())).collect(Collectors.toList());
     }
 
     /**

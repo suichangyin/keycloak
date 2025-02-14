@@ -17,6 +17,7 @@
 
 package org.keycloak.services.resources.admin;
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import org.keycloak.events.admin.OperationType;
 import org.keycloak.events.admin.ResourceType;
 import org.keycloak.models.ClientModel;
@@ -161,5 +162,30 @@ public abstract class RoleResource {
         }
 
         adminEvent.operation(OperationType.DELETE).resourcePath(uriInfo).representation(roles).success();
+    }
+
+    public static class ScopedRole {
+        private String scope;
+
+        @JsonUnwrapped
+        private RoleRepresentation role;
+
+        public ScopedRole() {
+            this.scope = "";
+            this.role = new RoleRepresentation();
+        }
+
+        public ScopedRole(String scope, RoleRepresentation role) {
+            this.scope = scope;
+            this.role = role;
+        }
+
+        public String getScope() {
+            return this.scope;
+        }
+
+        public RoleRepresentation getRole() {
+            return this.role;
+        }
     }
 }
