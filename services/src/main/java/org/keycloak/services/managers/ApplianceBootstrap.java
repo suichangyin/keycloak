@@ -73,7 +73,7 @@ public class ApplianceBootstrap {
         ServicesLogger.LOGGER.initializingAdminRealm(adminRealmName);
 
         RealmManager manager = new RealmManager(session);
-        RealmModel realm = manager.createRealm(adminRealmName);
+        RealmModel realm = manager.createRealm(adminRealmName, adminRealmName);
         realm.setName(adminRealmName);
         realm.setDisplayName(Version.NAME);
         realm.setDisplayNameHtml(Version.NAME_HTML);

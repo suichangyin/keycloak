@@ -615,7 +615,8 @@ public class RealmManager {
     public RealmModel importRealm(RealmRepresentation rep, boolean skipUserDependent) {
         String id = rep.getId();
         if (id == null || id.trim().isEmpty()) {
-            id = KeycloakModelUtils.generateId();
+//            id = KeycloakModelUtils.generateId();
+            id = rep.getRealm();
         } else {
             ReservedCharValidator.validate(id);
         }
