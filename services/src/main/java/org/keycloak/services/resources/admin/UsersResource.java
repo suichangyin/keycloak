@@ -730,9 +730,15 @@ public class UsersResource {
                         .limit(finalMaxResults);
             } else {
                 if (search != null) {
-                    sup = () -> session.users().searchForUserStream(realm, Map.of(UserModel.SEARCH, search), finalFirstResult, finalMaxResults);
+                    sup = () -> session.users().searchForUserStream(realm,
+                            Map.of(UserModel.SEARCH, search, UserModel.INCLUDE_SERVICE_ACCOUNT, Boolean.FALSE.toString()),
+                            finalFirstResult,
+                            finalMaxResults);
                 } else {
-                    sup = () -> session.users().searchForUserStream(realm, Collections.emptyMap(), finalFirstResult, finalMaxResults);
+                    sup = () -> session.users().searchForUserStream(realm,
+                            Map.of(UserModel.INCLUDE_SERVICE_ACCOUNT, Boolean.FALSE.toString()),
+                            finalFirstResult,
+                            finalMaxResults);
                 }
             }
 
@@ -780,7 +786,7 @@ public class UsersResource {
                 if (search == null || search.trim().isEmpty()) {
                     result = session.users().getUsersCount(realm);
                 } else {
-                    result = session.users().getUsersCount(realm, Map.of(UserModel.SEARCH, search));
+                    result = session.users().getUsersCount(realm, Map.of(UserModel.SEARCH, search, UserModel.INCLUDE_SERVICE_ACCOUNT, Boolean.FALSE.toString()));
                 }
             }
 //        } catch (LdapAuthenticationException e) {
