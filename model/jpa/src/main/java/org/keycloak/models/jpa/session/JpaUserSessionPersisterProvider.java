@@ -314,6 +314,21 @@ public class JpaUserSessionPersisterProvider implements UserSessionPersisterProv
     }
 
     @Override
+    public Map<String, Long> getUserSessionsCountsByUsers(RealmModel realm, boolean offline) {
+
+        String offlineStr = offlineToString(offline);
+
+        TypedQuery<Object[]> query = em.createNamedQuery("findClientSessionsUserIds", Object[].class);
+
+        query.setParameter("offline", offlineStr);
+        query.setParameter("realmId", realm.getId());
+        query.setParameter("lastSessionRefresh", calculateOldestSessionTime(realm, offline));
+
+        return closing(query.getResultStream())
+                .collect(Collectors.toMap(row -> (String) row[0], row -> (Long) row[1], Long::sum));
+    }
+
+    @Override
     public UserSessionModel loadUserSession(RealmModel realm, String userSessionId, boolean offline) {
 
         String offlineStr = offlineToString(offline);

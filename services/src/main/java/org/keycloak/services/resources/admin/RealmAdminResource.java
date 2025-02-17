@@ -27,8 +27,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -879,7 +881,9 @@ public class RealmAdminResource {
     @Tag(name = KeycloakOpenAPI.Admin.Tags.REALMS_ADMIN)
     @Operation( summary = "Get client session stats Returns a JSON map.",
         description = "The key is the client id, the value is the number of sessions that currently are active with that client. Only clients that actually have a session associated with them will be in this map.")
-    public Stream<Map<String, String>> getClientSessionStats() {
+    public List<Map<String, String>> getClientSessionStats(@QueryParam("search") String search,
+                                                             @QueryParam("first") Integer firstResult,
+                                                             @QueryParam("max") Integer maxResults) {
         auth.realm().requireViewRealm();
 
         Map<String, Map<String, String>> data = new HashMap<>();
@@ -915,7 +919,212 @@ public class RealmAdminResource {
             }
         }
 
-        return data.values().stream();
+        if (!ObjectUtil.isBlank(search)) {
+            CharSequence seq = search.trim();
+            data = data.entrySet()
+                    .stream()
+                    .filter(e -> e.getValue().get("clientId").contains(seq))
+                    .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+        }
+
+        List<Map<String, String>> result = new LinkedList<>();
+        for (Map<String, String> item : data.values())
+            result.add(item);
+
+        result.sort((s1, s2) -> s1.get("id").compareTo(s2.get("id")));
+        if (Objects.nonNull(firstResult) && Objects.nonNull(maxResults)) {
+            if (firstResult >= result.size()) {
+                return new LinkedList<Map<String, String>>();
+            }
+            Integer lastResult = firstResult +  maxResults;
+            if (lastResult >= result.size()) {
+                lastResult = result.size();
+            }
+            return result.subList(firstResult, lastResult);
+        }
+
+        return result;
+    }
+
+    /**
+     * Get count of client session stats
+     *
+     * @return
+     */
+    @Path("client-session-stats/count")
+    @GET
+    @NoCache
+    @Produces(MediaType.APPLICATION_JSON)
+    public Map<String, Integer> getClientSessionStatsCount(@QueryParam("search") String search) {
+        auth.realm().requireViewRealm();
+
+        Map<String, String> data = new HashMap<>();
+        {
+            Map<String, Long> activeCount = session.sessions().getActiveClientSessionStats(realm, false);
+            for (String id : activeCount.keySet()) {
+                ClientModel client = realm.getClientById(id);
+                if (client == null) {
+                    continue;
+                }
+
+                data.put(id, client.getClientId());
+            }
+        }
+        {
+            Map<String, Long> offlineCount = session.sessions().getActiveClientSessionStats(realm, true);
+            for (String id : offlineCount.keySet()) {
+                if (data.get(id) == null) {
+                    ClientModel client = realm.getClientById(id);
+                    if (client == null) {
+                        continue;
+                    }
+
+                    data.put(id, client.getClientId());
+                }
+            }
+        }
+
+        if (!ObjectUtil.isBlank(search)) {
+            CharSequence seq = search.trim();
+            data = data.entrySet()
+                    .stream()
+                    .filter(e -> e.getValue().contains(seq))
+                    .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+        }
+
+        return Collections.singletonMap("count", data.size());
+    }
+
+    /**
+     * Get user session stats
+     *
+     * Returns a JSON map.  The key is the user name, the value is the stat of sessions that currently are active
+     * with that user.  Only users that actually have a session associated with them will be in this map.
+     *
+     * @return
+     */
+    @Path("user-session-stats")
+    @GET
+    @NoCache
+    @Produces(MediaType.APPLICATION_JSON)
+    @Tag(name = KeycloakOpenAPI.Admin.Tags.REALMS_ADMIN)
+    @Operation( summary = "Get user session stats Returns a JSON map.",
+            description = "The key is the user id, the value is the number of sessions that currently are active with that user. Only users that actually have a session associated with them will be in this map.")
+    public List<Map<String, String>> getUserSessionStats(@QueryParam("search") String search,
+                                                         @QueryParam("first") Integer firstResult,
+                                                         @QueryParam("max") Integer maxResults) {
+        auth.realm().requireViewRealm();
+
+        Map<String, Map<String, String>> data = new HashMap<>();
+        {
+            Map<String, Long> activeCount = session.sessions().getActiveUserSessionStats(realm, false);
+            for (Map.Entry<String, Long> entry : activeCount.entrySet()) {
+                UserModel user = session.users().getUserById(realm, entry.getKey());
+                if (user == null) {
+                    continue;
+                }
+
+                Map<String, String> map = new HashMap<>();
+                map.put("id", user.getId());
+                map.put("username", user.getUsername());
+                map.put("active", entry.getValue().toString());
+                map.put("offline", "0");
+                data.put(user.getId(), map);
+            }
+        }
+        {
+            Map<String, Long> offlineCount = session.sessions().getActiveUserSessionStats(realm, true);
+            for (Map.Entry<String, Long> entry : offlineCount.entrySet()) {
+                Map<String, String> map = data.get(entry.getKey());
+                if (map == null) {
+                    map = new HashMap<>();
+                    UserModel user = session.users().getUserById(realm, entry.getKey());
+                    if (user == null) {
+                        continue;
+                    }
+                    map.put("id", user.getId());
+                    map.put("username", user.getUsername());
+                    map.put("active", "0");
+                    data.put(user.getId(), map);
+                }
+                map.put("offline", entry.getValue().toString());
+            }
+        }
+
+        if (!ObjectUtil.isBlank(search)) {
+            CharSequence seq = search.trim();
+            data = data.entrySet()
+                    .stream()
+                    .filter(e -> e.getValue().get("username").contains(seq))
+                    .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+        }
+
+        List<Map<String, String>> result = new LinkedList<>();
+        for (Map<String, String> item : data.values()) {
+            result.add(item);
+        }
+
+        result.sort((s1, s2) -> s1.get("username").compareTo(s2.get("username")));
+        if (Objects.nonNull(firstResult) && Objects.nonNull(maxResults)) {
+            if (firstResult >= result.size()) {
+                return new LinkedList<Map<String, String>>();
+            }
+            Integer lastResult = firstResult +  maxResults;
+            if (lastResult >= result.size()) {
+                lastResult = result.size();
+            }
+            return result.subList(firstResult, lastResult);
+        }
+
+        return result;
+    }
+
+    /**
+     * Get count of user session stats
+     * @return
+     */
+    @Path("user-session-stats/count")
+    @GET
+    @NoCache
+    @Produces(MediaType.APPLICATION_JSON)
+    public Map<String, Integer> getUserSessionStatsCount(@QueryParam("search") String search) {
+        auth.realm().requireViewRealm();
+
+        Map<String, String> data = new HashMap<>();
+        {
+            Map<String, Long> activeCount = session.sessions().getActiveUserSessionStats(realm, false);
+            for (String id : activeCount.keySet()) {
+                UserModel user = session.users().getUserById(realm, id);
+                if (user == null) {
+                    continue;
+                }
+
+                data.put(id, user.getUsername());
+            }
+        }
+        {
+            Map<String, Long> offlineCount = session.sessions().getActiveUserSessionStats(realm, true);
+            for (String id : offlineCount.keySet()) {
+                if (data.get(id) == null) {
+                    UserModel user = session.users().getUserById(realm, id);
+                    if (user == null) {
+                        continue;
+                    }
+
+                    data.put(id, user.getUsername());
+                }
+            }
+        }
+
+        if (!ObjectUtil.isBlank(search)) {
+            CharSequence seq = search.trim();
+            data = data.entrySet()
+                    .stream()
+                    .filter(e -> e.getValue().contains(seq))
+                    .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+        }
+
+        return Collections.singletonMap("count", data.size());
     }
 
     /**

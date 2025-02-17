@@ -174,6 +174,12 @@ public class RemoteUserSessionProvider implements UserSessionProvider {
     }
 
     @Override
+    public Map<String, Long> getActiveUserSessionStats(RealmModel realm, boolean offline) {
+        // TODO: no implement now
+        return getActiveClientSessionStats(realm, offline);
+    }
+
+    @Override
     public void removeUserSession(RealmModel realm, UserSessionModel userSession) {
         internalRemoveUserSession(userSession, false);
     }

@@ -22,6 +22,7 @@ import org.keycloak.models.sessions.infinispan.entities.LoginFailureEntity;
 import org.keycloak.models.sessions.infinispan.entities.LoginFailureKey;
 import org.keycloak.models.sessions.infinispan.entities.UserSessionEntity;
 
+import java.util.AbstractMap;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
@@ -50,5 +51,7 @@ public class Mappers {
         return AuthClientSessionSetMapper.getInstance();
     }
 
-
+    public static Function<Map.Entry<String, SessionEntityWrapper<UserSessionEntity>>, AbstractMap.SimpleEntry<String, Long>> userSessionCountMapper() {
+        return UserSessionCountMapper.getInstance();
+    }
 }

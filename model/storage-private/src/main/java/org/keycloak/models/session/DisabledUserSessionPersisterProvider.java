@@ -150,4 +150,9 @@ public class DisabledUserSessionPersisterProvider implements UserSessionPersiste
     public Map<String, Long> getUserSessionsCountsByClients(RealmModel realm, boolean offline) {
         return Collections.emptyMap();
     }
+
+    @Override
+    public Map<String, Long> getUserSessionsCountsByUsers(RealmModel realm, boolean offline) {
+        return Collections.emptyMap();
+    }
 }

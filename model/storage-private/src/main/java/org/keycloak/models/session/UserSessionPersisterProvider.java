@@ -139,6 +139,8 @@ public interface UserSessionPersisterProvider extends Provider {
      */
     Map<String, Long> getUserSessionsCountsByClients(RealmModel realm, boolean offline);
 
+    Map<String, Long> getUserSessionsCountsByUsers(RealmModel realm, boolean offline);
+
     /**
      * Remove the online user sessions for this realm.
      */

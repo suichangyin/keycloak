@@ -17,6 +17,7 @@
 
 package org.keycloak.models.sessions.infinispan;
 
+import java.util.AbstractMap;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -235,8 +236,8 @@ public class InfinispanUserSessionProvider implements UserSessionProvider, Sessi
         sessionTx.addTask(id, createSessionTask, entity, persistenceState);
 
         UserSessionAdapter adapter = user instanceof LightweightUserAdapter
-          ? wrap(realm, entity, false, user)
-          : wrap(realm, entity, false);
+                ? wrap(realm, entity, false, user)
+                : wrap(realm, entity, false);
         adapter.setPersistenceState(persistenceState);
         return adapter;
     }
@@ -562,6 +563,23 @@ public class InfinispanUserSessionProvider implements UserSessionProvider, Sessi
                 .map(Mappers.authClientSessionSetMapper())
                 .flatMap(CollectionToStreamMapper.getInstance())
                 .collect(CacheCollectors.collector(GroupAndCountCollectorSupplier.getInstance()));
+    }
+
+    @Override
+    public Map<String, Long> getActiveUserSessionStats(RealmModel realm, boolean offline) {
+        Cache<String, SessionEntityWrapper<UserSessionEntity>> cache = CacheDecorators.skipCacheLoadersIfRemoteStoreIsEnabled(getCache(offline));
+        return cache.entrySet()
+                .stream()
+                .filter(UserSessionPredicate.create(realm.getId()))
+                .map(Mappers.userSessionCountMapper())
+                .collect(
+                        CacheCollectors.serializableCollector(
+                                () -> Collectors.groupingBy(
+                                        AbstractMap.SimpleEntry<String, Long>::getKey,
+                                        Collectors.summingLong(AbstractMap.SimpleEntry<String, Long>::getValue)
+                                )
+                        )
+                );
     }
 
     protected long getUserSessionsCount(RealmModel realm, ClientModel client, boolean offline) {

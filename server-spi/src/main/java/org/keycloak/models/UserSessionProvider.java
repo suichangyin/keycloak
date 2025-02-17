@@ -133,6 +133,15 @@ public interface UserSessionProvider extends Provider {
      */
     Map<String, Long> getActiveClientSessionStats(RealmModel realm, boolean offline);
 
+    /**
+     * Returns a summary of client sessions key is client.getId()
+     *
+     * @param realm
+     * @param offline
+     * @return
+     */
+    Map<String, Long> getActiveUserSessionStats(RealmModel realm, boolean offline);
+
     /** This will remove attached ClientLoginSessionModels too **/
     void removeUserSession(RealmModel realm, UserSessionModel session);
     void removeUserSessions(RealmModel realm, UserModel user);

@@ -440,6 +440,12 @@ public class PersistentUserSessionProvider implements UserSessionProvider, Sessi
         return persister.getUserSessionsCountsByClients(realm, offline);
     }
 
+    @Override
+    public Map<String, Long> getActiveUserSessionStats(RealmModel realm, boolean offline) {
+        UserSessionPersisterProvider persister = session.getProvider(UserSessionPersisterProvider.class);
+        return persister.getUserSessionsCountsByUsers(realm, offline);
+    }
+
     protected long getUserSessionsCount(RealmModel realm, ClientModel client, boolean offline) {
         // fetch the actual offline user session count from the database
         UserSessionPersisterProvider persister = session.getProvider(UserSessionPersisterProvider.class);
