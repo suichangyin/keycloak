@@ -76,7 +76,7 @@ import static org.keycloak.models.Constants.IS_TEMP_ADMIN_ATTR_NAME;
  * @version $Revision: 1 $
  */
 public class ModelToRepresentation {
-
+    private static final Logger logger = Logger.getLogger(ModelToRepresentation.class);
     public static Set<String> REALM_EXCLUDED_ATTRIBUTES = new HashSet<>();
     static {
         REALM_EXCLUDED_ATTRIBUTES.add("displayName");
@@ -185,13 +185,30 @@ public class ModelToRepresentation {
     }
 
     @Deprecated
+    public static Stream<GroupRepresentation> toFilterGroupHierarchy(KeycloakSession session, RealmModel realm, GroupModel without, boolean full) {
+        return session.groups().getTopLevelGroupsStream(realm, null, null)
+                .filter(g -> !g.getId().equals(without.getId()))
+                .map(g -> toFilterGroupHierarchy(g, without, full));
+    }
+
+    @Deprecated
     public static GroupRepresentation toGroupHierarchy(GroupModel group, boolean full) {
         return toGroupHierarchy(group, full, (String) null);
     }
 
     @Deprecated
+    public static GroupRepresentation toFilterGroupHierarchy(GroupModel group, GroupModel without, boolean full) {
+        return toFilterGroupHierarchy(group, without, full, (String) null);
+    }
+
+    @Deprecated
     public static GroupRepresentation toGroupHierarchy(GroupModel group, boolean full, String search) {
         return toGroupHierarchy(group, full, search, false);
+    }
+
+    @Deprecated
+    public static GroupRepresentation toFilterGroupHierarchy(GroupModel group, GroupModel without, boolean full, String search) {
+        return toFilterGroupHierarchy(group, without, full, search, false);
     }
 
     @Deprecated
@@ -204,6 +221,21 @@ public class ModelToRepresentation {
         List<GroupRepresentation> subGroups = group.getSubGroupsStream()
                 .filter(g -> groupMatchesSearchOrIsPathElement(g, search, exact))
                 .map(subGroup -> toGroupHierarchy(subGroup, full, search, exact)).collect(Collectors.toList());
+        rep.setSubGroups(subGroups);
+        return rep;
+    }
+
+    @Deprecated
+    /**
+     * @deprecated This function is left in place to serve mostly for a full export of all groups.
+     * There is a GroupUtil class in the keycloak-services module to handle normal search operations
+     */
+    public static GroupRepresentation toFilterGroupHierarchy(GroupModel group, GroupModel without, boolean full, String search, Boolean exact) {
+        GroupRepresentation rep = toRepresentation(group, full);
+        List<GroupRepresentation> subGroups = group.getSubGroupsStream()
+                .filter(g -> !g.getId().equals(without.getId()))
+                .filter(g -> groupMatchesSearchOrIsPathElement(g, search, exact))
+                .map(subGroup -> toFilterGroupHierarchy(subGroup, without, full, search, exact)).collect(Collectors.toList());
         rep.setSubGroups(subGroups);
         return rep;
     }

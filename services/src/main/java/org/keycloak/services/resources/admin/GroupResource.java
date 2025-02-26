@@ -20,7 +20,9 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.github.stuxuhai.jpinyin.PinyinException;
 import com.github.stuxuhai.jpinyin.PinyinFormat;
 import com.github.stuxuhai.jpinyin.PinyinHelper;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.InternalServerErrorException;
+import jakarta.ws.rs.PathParam;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
@@ -310,6 +312,80 @@ public class GroupResource {
         } catch (ModelDuplicateException e) {
             throw ErrorResponse.exists("Sibling group named '" + groupName + "' already exists.");
         }
+    }
+
+    @PUT
+    @Path("parent/{id}")
+    @NoCache
+    public void setParent(@PathParam("id") String targetId) {
+        this.auth.groups().requireManage(group);
+
+        GroupModel target = realm.getGroupById(targetId);
+        if (target == null) {
+            throw new NotFoundException("Group with ID not found.");
+        }
+
+        GroupModel parent = group.getParent();
+        if (parent != null && parent.equals(target)) {
+            throw new BadRequestException("Target group is same with the original group.");
+        }
+
+//        LDAPStorageMapper ldapGroupMapper = getLDAPGroupMapper(session, realm);
+//        if (ldapGroupMapper != null) {
+//            ldapGroupMapper.moveGroup(group, target);
+//        }
+        realm.moveGroup(group, target);
+
+        adminEvent.operation(OperationType.UPDATE)
+                .resource(ResourceType.GROUP)
+                .resourcePath(session.getContext().getUri())
+                .representation(ModelToRepresentation.toRepresentation(group, true))
+                .success();
+    }
+
+    @DELETE
+    @Path("parent")
+    @NoCache
+    public void setNoParent() {
+        this.auth.groups().requireManage(group);
+
+        if (group.getParent() == null) {
+            return;
+        }
+
+//        LDAPStorageMapper ldapGroupMapper = getLDAPGroupMapper(session, realm);
+//        if (ldapGroupMapper != null) {
+//            ldapGroupMapper.moveGroup(group, null);
+//        }
+        realm.moveGroup(group, null);
+
+        adminEvent.operation(OperationType.UPDATE)
+                .resource(ResourceType.GROUP)
+                .resourcePath(session.getContext().getUri())
+                .representation(ModelToRepresentation.toRepresentation(group, true))
+                .success();
+    }
+
+    @GET
+    @Path("parent/available")
+    @NoCache
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<GroupRepresentation> getParentAvailable() {
+        auth.groups().requireView(group);
+        auth.groups().requireList();
+
+        return ModelToRepresentation.toFilterGroupHierarchy(session, realm, group, true).collect(Collectors.toList());
+    }
+
+    @GET
+    @Path("parent/available2")
+    @NoCache
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<GroupRepresentation> getParentAvailable2() {
+        auth.groups().requireView(group);
+        auth.groups().requireList();
+
+        return ModelToRepresentation.toFilterGroupHierarchy(session, realm, group,true).collect(Collectors.toList());
     }
 
     public static void updateGroup(GroupRepresentation rep, GroupModel model, RealmModel realm, KeycloakSession session) {
