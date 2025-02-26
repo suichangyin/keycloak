@@ -149,6 +149,7 @@ public class ModelToRepresentation {
         GroupRepresentation rep = new GroupRepresentation();
         rep.setId(group.getId());
         rep.setName(group.getName());
+        rep.setDisplayName(group.getDisplayName());
         rep.setPath(buildGroupPath(group));
         rep.setParentId(group.getParentId());
         if (!full) return rep;

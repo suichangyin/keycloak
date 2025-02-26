@@ -173,7 +173,11 @@ public class GroupResource {
         String groupName = rep.getName();
 
         if (ObjectUtil.isBlank(groupName)) {
-            throw ErrorResponse.error("Group name is missing", Response.Status.BAD_REQUEST);
+            if (rep.getDisplayName() != null) {
+                groupName = group.getName();
+            } else {
+                throw ErrorResponse.error("Group name is missing", Response.Status.BAD_REQUEST);
+            }
         }
 
         if (rep.getId() != null && !group.getId().equals(rep.getId())) {
@@ -185,8 +189,9 @@ public class GroupResource {
         }
 
         if (!Objects.equals(groupName, group.getName())) {
+            String finalGroupName = groupName;
             boolean exists = siblings().filter(s -> !Objects.equals(s.getId(), group.getId()))
-                    .anyMatch(s -> Objects.equals(s.getName(), groupName));
+                    .anyMatch(s -> Objects.equals(s.getName(), finalGroupName));
             if (exists) {
                 throw ErrorResponse.exists("Sibling group named '" + groupName + "' already exists.");
             }
