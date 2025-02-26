@@ -24,17 +24,21 @@ public class ExportOptions {
 
     private boolean usersIncluded = true;
     private boolean clientsIncluded = true;
-    private boolean groupsAndRolesIncluded = true;
+    private boolean groupsIncluded = true;
+    private boolean rolesIncluded = true;
+    private boolean miscIncluded = true;
     private boolean onlyServiceAccountsIncluded = false;
     private boolean partial;
 
     public ExportOptions() {
     }
 
-    public ExportOptions(boolean users, boolean clients, boolean groupsAndRoles, boolean onlyServiceAccounts, boolean partial) {
+    public ExportOptions(boolean users, boolean clients, boolean groups, boolean roles, boolean misc, boolean onlyServiceAccounts, boolean partial) {
         usersIncluded = users;
         clientsIncluded = clients;
-        groupsAndRolesIncluded = groupsAndRoles;
+        groupsIncluded = groups;
+        rolesIncluded = roles;
+        miscIncluded = misc;
         onlyServiceAccountsIncluded = onlyServiceAccounts;
         this.partial = partial;
     }
@@ -47,8 +51,16 @@ public class ExportOptions {
         return clientsIncluded;
     }
 
-    public boolean isGroupsAndRolesIncluded() {
-        return groupsAndRolesIncluded;
+    public boolean isGroupsIncluded() {
+        return groupsIncluded;
+    }
+
+    public boolean isRolesIncluded() {
+        return rolesIncluded;
+    }
+
+    public boolean isMiscIncluded() {
+        return miscIncluded;
     }
 
     public boolean isOnlyServiceAccountsIncluded() {
@@ -63,8 +75,16 @@ public class ExportOptions {
         clientsIncluded = value;
     }
 
-    public void setGroupsAndRolesIncluded(boolean value) {
-        groupsAndRolesIncluded = value;
+    public void setGroupsIncluded(boolean groupsIncluded) {
+        this.groupsIncluded = groupsIncluded;
+    }
+
+    public void setRolesIncluded(boolean rolesIncluded) {
+        this.rolesIncluded = rolesIncluded;
+    }
+
+    public void setMiscIncluded(boolean miscIncluded) {
+        this.miscIncluded = miscIncluded;
     }
 
     public void setOnlyServiceAccountsIncluded(boolean value) {

@@ -19,10 +19,18 @@ package org.keycloak.partialimport;
 
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserModel;
+import org.keycloak.models.utils.KeycloakModelUtils;
+import org.keycloak.models.utils.ModelToRepresentation;
 import org.keycloak.representations.idm.PartialImportRepresentation;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * This class manages the PartialImport handlers.
@@ -58,9 +66,34 @@ public class PartialImportManager {
             partialImport.prepare(rep, realm, session);
         }
 
+        Map<String, Set<String>> groupMemberships = session.users().searchForUserStream(realm, Collections.emptyMap())
+                .collect(Collectors.toMap(
+                        user -> user.getId(),
+                        user -> user.getGroupsStream()
+                                .map(ModelToRepresentation::buildGroupPath)
+                                .collect(Collectors.toSet())
+                ));
+
         for (PartialImport partialImport : partialImports) {
             partialImport.removeOverwrites(realm, session);
             results.addAllResults(partialImport.doImport(rep, realm, session));
+
+            if (partialImport instanceof GroupsPartialImport) {
+                groupMemberships.entrySet().stream()
+                        .map(entry -> {
+                            UserModel user = session.users().getUserById(realm, entry.getKey());
+                            return user != null ? Map.entry(user, entry.getValue()) : null;
+                        })
+                        .filter(Objects::nonNull)
+                        .forEach(entry -> {
+                            UserModel user = entry.getKey();
+                            entry.getValue().stream()
+                                    .map(groupPath -> KeycloakModelUtils.findGroupByPath(session, realm, groupPath))
+                                    .filter(Objects::nonNull)
+                                    .filter(group -> !user.isMemberOf(group))
+                                    .forEach(user::joinGroup);
+                        });
+            }
         }
 
         return results;

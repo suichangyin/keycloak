@@ -1699,6 +1699,34 @@ public class RealmAdminResource {
         return GroupUtils.populateSubGroupCount(found, groupRep);
     }
 
+
+    /**
+     * Partial import from a JSON file to an existing realm.
+     *
+     */
+    @Path("import")
+    @POST
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Tag(name = KeycloakOpenAPI.Admin.Tags.REALMS_ADMIN)
+    @Operation( summary = "Import from a JSON file to an existing realm.")
+    public Response dtImport(InputStream requestBody, @QueryParam("policy") String policy) {
+        auth.realm().requireManageRealm();
+
+        try {
+            return Response.ok(
+                    KeycloakModelUtils.runJobInTransactionWithResult(session.getKeycloakSessionFactory(), session.getContext(), kcSession -> {
+                        RealmModel realmClone = kcSession.realms().getRealm(realm.getId());
+                        AdminEventBuilder adminEventClone = adminEvent.clone(kcSession);
+                        // calling a static method to avoid using the wrong instances
+                        return getPartialImportResults(requestBody, policy, kcSession, realmClone, adminEventClone);
+                    }, false, "Dt import in realm " + realm.getName())
+            ).build();
+        } catch (ModelDuplicateException e) {
+            throw ErrorResponse.exists(e.getLocalizedMessage());
+        }
+    }
+
     /**
      * Partial import from a JSON file to an existing realm.
      *
@@ -1723,6 +1751,18 @@ public class RealmAdminResource {
         } catch (ModelDuplicateException e) {
             throw ErrorResponse.exists(e.getLocalizedMessage());
         }
+    }
+
+    private static PartialImportResults getPartialImportResults(InputStream requestBody, String policy, KeycloakSession kcSession, RealmModel kcRealm, AdminEventBuilder adminEventClone) {
+        ExportImportManager exportProvider = kcSession.getProvider(DatastoreProvider.class).getExportImportManager();
+        PartialImportResults results = exportProvider.partialImportRealm(kcRealm, requestBody, policy);
+        for (PartialImportResult result : results.getResults()) {
+            switch (result.getAction()) {
+                case ADDED : fireCreatedEvent(result, adminEventClone); break;
+                case OVERWRITTEN: fireUpdateEvent(result, adminEventClone); break;
+            }
+        }
+        return results;
     }
 
     private static PartialImportResults getPartialImportResults(InputStream requestBody, KeycloakSession kcSession, RealmModel kcRealm, AdminEventBuilder adminEventClone) {
@@ -1754,6 +1794,72 @@ public class RealmAdminResource {
     /**
      * Partial export of existing realm into a JSON file.
      *
+     * @param exportRoles
+     * @param exportClients
+     * @param exportGroups
+     * @param exportUsers
+     * @param exportMisc
+     * @return
+     */
+    @Path("export")
+    @Produces(MediaType.APPLICATION_JSON)
+    @POST
+    @Tag(name = KeycloakOpenAPI.Admin.Tags.REALMS_ADMIN)
+    @Operation( summary = "Partial export of existing realm into a JSON file.")
+    public Response export(@QueryParam("exportRoles") Boolean exportRoles,
+                           @QueryParam("exportClients") Boolean exportClients,
+                           @QueryParam("exportGroups") Boolean exportGroups,
+                           @QueryParam("exportUsers") Boolean exportUsers,
+                           @QueryParam("exportMisc") Boolean exportMisc) {
+        auth.realm().requireManageRealm();
+
+        boolean rolesExported = exportRoles != null && exportRoles;
+        boolean clientsExported = exportClients != null && exportClients;
+        boolean groupsExported = exportGroups != null && exportGroups;
+        boolean usersExported = exportUsers != null && exportUsers;
+        boolean miscExported = exportMisc != null && exportMisc;
+
+        if (rolesExported) {
+            auth.roles().requireList(realm);
+        }
+        if (clientsExported) {
+            auth.clients().requireList();
+        }
+        if (groupsExported) {
+            auth.groups().requireList();
+        }
+        if (usersExported) {
+            auth.users().requireView();
+        }
+        if (miscExported) {
+            auth.realm().requireViewRealm();
+        }
+
+        // service accounts are exported if the clients are exported
+        // this means that if clients is true but groups/roles is false the service account is exported without roles
+        // the other option is just include service accounts if clientsExported && groupsAndRolesExported
+        ExportOptions options = new ExportOptions(false, clientsExported, groupsExported, rolesExported, miscExported, clientsExported, true);
+
+        ExportImportManager exportProvider = session.getProvider(DatastoreProvider.class).getExportImportManager();
+
+        Response.ResponseBuilder response = Response.ok();
+
+        exportProvider.exportRealm(realm, options, new ExportAdapter() {
+            @Override
+            public void setType(String mediaType) {
+                response.type(mediaType);
+            }
+            @Override
+            public void writeToOutputStream(ConsumerOfOutputStream consumer) {
+                response.entity((StreamingOutput) consumer::accept);
+            }
+        });
+        return response.build();
+    }
+
+    /**
+     * Partial export of existing realm into a JSON file.
+     *
      * @param exportGroupsAndRoles
      * @param exportClients
      * @return
@@ -1780,7 +1886,7 @@ public class RealmAdminResource {
         // service accounts are exported if the clients are exported
         // this means that if clients is true but groups/roles is false the service account is exported without roles
         // the other option is just include service accounts if clientsExported && groupsAndRolesExported
-        ExportOptions options = new ExportOptions(false, clientsExported, groupsAndRolesExported, clientsExported, true);
+        ExportOptions options = new ExportOptions(false, clientsExported, groupsAndRolesExported, groupsAndRolesExported, true, clientsExported, true);
 
         ExportImportManager exportProvider = session.getProvider(DatastoreProvider.class).getExportImportManager();
 

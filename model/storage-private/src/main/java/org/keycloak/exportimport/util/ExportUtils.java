@@ -74,14 +74,19 @@ import org.keycloak.representations.idm.MembershipType;
 public class ExportUtils {
 
     public static RealmRepresentation exportRealm(KeycloakSession session, RealmModel realm, boolean includeUsers, boolean internal) {
-        ExportOptions opts = new ExportOptions(includeUsers, true, true, false, false);
+        ExportOptions opts = new ExportOptions(includeUsers, true, true, true, true, false, false);
         return exportRealm(session, realm, opts, internal);
     }
 
     public static RealmRepresentation exportRealm(KeycloakSession session, RealmModel realm, ExportOptions options, boolean internal) {
-        RealmRepresentation rep = ModelToRepresentation.toRepresentation(session, realm, internal, true);
-        ModelToRepresentation.exportAuthenticationFlows(session, realm, rep);
-        ModelToRepresentation.exportRequiredActions(realm, rep);
+        final RealmRepresentation rep;
+        if (options.isMiscIncluded()) {
+            rep = ModelToRepresentation.toRepresentation(session, realm, internal, true);
+            ModelToRepresentation.exportAuthenticationFlows(session, realm, rep);
+             ModelToRepresentation.exportRequiredActions(realm, rep);
+        } else {
+            rep = new RealmRepresentation();
+        }
 
         // Project/product version
         rep.setKeycloakVersion(Version.VERSION);
@@ -108,10 +113,13 @@ public class ExportUtils {
             rep.setClients(clientReps);
         }
 
-        // Groups and Roles
-        if (options.isGroupsAndRolesIncluded()) {
+        // Groups
+        if (options.isGroupsIncluded()) {
             ModelToRepresentation.exportGroups(session, realm, rep);
+        }
 
+        // Roles
+        if (options.isRolesIncluded()) {
             Map<String, List<RoleRepresentation>> clientRolesReps = new HashMap<>();
 
             List<RoleRepresentation> realmRoleReps = exportRoles(realm.getRolesStream());
@@ -135,19 +143,53 @@ public class ExportUtils {
         }
 
         // Scopes
-        Map<String, List<ScopeMappingRepresentation>> clientScopeReps = new HashMap<>();
+        if (options.isMiscIncluded()) {
+            Map<String, List<ScopeMappingRepresentation>> clientScopeReps = new HashMap<>();
 
-        if (options.isClientsIncluded()) {
-            List<ClientModel> allClients = new ArrayList<>(clients);
+            if (options.isClientsIncluded()) {
+                List<ClientModel> allClients = new ArrayList<>(clients);
 
-            // Scopes of clients
-            for (ClientModel client : allClients) {
-                Set<RoleModel> clientScopes = client.getScopeMappingsStream().collect(Collectors.toSet());
+                // Scopes of clients
+                for (ClientModel client : allClients) {
+                    Set<RoleModel> clientScopes = client.getScopeMappingsStream().collect(Collectors.toSet());
+                    ScopeMappingRepresentation scopeMappingRep = null;
+                    for (RoleModel scope : clientScopes) {
+                        if (scope.getContainer() instanceof RealmModel) {
+                            if (scopeMappingRep == null) {
+                                scopeMappingRep = rep.clientScopeMapping(client.getClientId());
+                            }
+                            scopeMappingRep.role(scope.getName());
+                        } else {
+                            ClientModel app = (ClientModel) scope.getContainer();
+                            String appName = app.getClientId();
+                            List<ScopeMappingRepresentation> currentAppScopes = clientScopeReps.computeIfAbsent(appName, k -> new ArrayList<>());
+
+                            ScopeMappingRepresentation currentClientScope = null;
+                            for (ScopeMappingRepresentation scopeMapping : currentAppScopes) {
+                                if (client.getClientId().equals(scopeMapping.getClient())) {
+                                    currentClientScope = scopeMapping;
+                                    break;
+                                }
+                            }
+                            if (currentClientScope == null) {
+                                currentClientScope = new ScopeMappingRepresentation();
+                                currentClientScope.setClient(client.getClientId());
+                                currentAppScopes.add(currentClientScope);
+                            }
+                            currentClientScope.role(scope.getName());
+                        }
+                    }
+                }
+            }
+
+            // Scopes of client scopes
+            realm.getClientScopesStream().forEach(clientScope -> {
+                Set<RoleModel> clientScopes = clientScope.getScopeMappingsStream().collect(Collectors.toSet());
                 ScopeMappingRepresentation scopeMappingRep = null;
                 for (RoleModel scope : clientScopes) {
                     if (scope.getContainer() instanceof RealmModel) {
                         if (scopeMappingRep == null) {
-                            scopeMappingRep = rep.clientScopeMapping(client.getClientId());
+                            scopeMappingRep = rep.clientScopeScopeMapping(clientScope.getName());
                         }
                         scopeMappingRep.role(scope.getName());
                     } else {
@@ -155,58 +197,26 @@ public class ExportUtils {
                         String appName = app.getClientId();
                         List<ScopeMappingRepresentation> currentAppScopes = clientScopeReps.computeIfAbsent(appName, k -> new ArrayList<>());
 
-                        ScopeMappingRepresentation currentClientScope = null;
+                        ScopeMappingRepresentation currentClientTemplateScope = null;
                         for (ScopeMappingRepresentation scopeMapping : currentAppScopes) {
-                            if (client.getClientId().equals(scopeMapping.getClient())) {
-                                currentClientScope = scopeMapping;
+                            if (clientScope.getName().equals(scopeMapping.getClientScope())) {
+                                currentClientTemplateScope = scopeMapping;
                                 break;
                             }
                         }
-                        if (currentClientScope == null) {
-                            currentClientScope = new ScopeMappingRepresentation();
-                            currentClientScope.setClient(client.getClientId());
-                            currentAppScopes.add(currentClientScope);
+                        if (currentClientTemplateScope == null) {
+                            currentClientTemplateScope = new ScopeMappingRepresentation();
+                            currentClientTemplateScope.setClientScope(clientScope.getName());
+                            currentAppScopes.add(currentClientTemplateScope);
                         }
-                        currentClientScope.role(scope.getName());
+                        currentClientTemplateScope.role(scope.getName());
                     }
                 }
+            });
+
+            if (!clientScopeReps.isEmpty()) {
+                rep.setClientScopeMappings(clientScopeReps);
             }
-        }
-
-        // Scopes of client scopes
-        realm.getClientScopesStream().forEach(clientScope -> {
-            Set<RoleModel> clientScopes = clientScope.getScopeMappingsStream().collect(Collectors.toSet());
-            ScopeMappingRepresentation scopeMappingRep = null;
-            for (RoleModel scope : clientScopes) {
-                if (scope.getContainer() instanceof RealmModel) {
-                    if (scopeMappingRep == null) {
-                        scopeMappingRep = rep.clientScopeScopeMapping(clientScope.getName());
-                    }
-                    scopeMappingRep.role(scope.getName());
-                } else {
-                    ClientModel app = (ClientModel)scope.getContainer();
-                    String appName = app.getClientId();
-                    List<ScopeMappingRepresentation> currentAppScopes = clientScopeReps.computeIfAbsent(appName, k -> new ArrayList<>());
-
-                    ScopeMappingRepresentation currentClientTemplateScope = null;
-                    for (ScopeMappingRepresentation scopeMapping : currentAppScopes) {
-                        if (clientScope.getName().equals(scopeMapping.getClientScope())) {
-                            currentClientTemplateScope = scopeMapping;
-                            break;
-                        }
-                    }
-                    if (currentClientTemplateScope == null) {
-                        currentClientTemplateScope = new ScopeMappingRepresentation();
-                        currentClientTemplateScope.setClientScope(clientScope.getName());
-                        currentAppScopes.add(currentClientTemplateScope);
-                    }
-                    currentClientTemplateScope.role(scope.getName());
-                }
-            }
-        });
-
-        if (!clientScopeReps.isEmpty()) {
-            rep.setClientScopeMappings(clientScopeReps);
         }
 
         // Finally users if needed
@@ -381,7 +391,7 @@ public class ExportUtils {
         }
 
         // Role mappings
-        if (options.isGroupsAndRolesIncluded()) {
+        if (options.isGroupsIncluded() || options.isRolesIncluded()) {
             Set<RoleModel> roles = user.getRoleMappingsStream().collect(Collectors.toSet());
             List<String> realmRoleNames = new ArrayList<>();
             Map<String, List<String>> clientRoleNames = new HashMap<>();
@@ -438,7 +448,7 @@ public class ExportUtils {
             }
         }
 
-        if (options.isGroupsAndRolesIncluded()) {
+        if (options.isGroupsIncluded()) {
             List<String> groups = user.getGroupsStream()
                     .filter(g -> Type.REALM.equals(g.getType()))
                     .map(ModelToRepresentation::buildGroupPath).collect(Collectors.toList());
@@ -550,7 +560,7 @@ public class ExportUtils {
         }
 
         // Role mappings
-        if (options.isGroupsAndRolesIncluded()) {
+        if (options.isGroupsIncluded() || options.isRolesIncluded()) {
             Set<RoleModel> roles = userFederatedStorage(session).getRoleMappingsStream(realm, id).collect(Collectors.toSet());
             List<String> realmRoleNames = new ArrayList<>();
             Map<String, List<String>> clientRoleNames = new HashMap<>();
@@ -594,7 +604,7 @@ public class ExportUtils {
         int notBefore = userFederatedStorage(session).getNotBeforeOfUser(realm, userRep.getId());
         userRep.setNotBefore(notBefore);
 
-        if (options.isGroupsAndRolesIncluded()) {
+        if (options.isGroupsIncluded()) {
             List<String> groups = userFederatedStorage(session).getGroupsStream(realm, id)
                     .map(ModelToRepresentation::buildGroupPath).collect(Collectors.toList());
             userRep.setGroups(groups);

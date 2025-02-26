@@ -28,7 +28,7 @@ import java.util.List;
  */
 @JsonIgnoreProperties(ignoreUnknown=true)
 public class PartialImportRepresentation {
-    public enum Policy { SKIP, OVERWRITE, FAIL };
+    public enum Policy { SKIP, OVERWRITE, RECOVER, FAIL };
 
     protected Policy policy = Policy.FAIL;
     protected String ifResourceExists;

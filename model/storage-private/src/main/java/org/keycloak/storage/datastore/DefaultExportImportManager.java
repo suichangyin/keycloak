@@ -17,6 +17,7 @@
 
 package org.keycloak.storage.datastore;
 
+import jakarta.ws.rs.BadRequestException;
 import org.jboss.logging.Logger;
 import org.keycloak.common.Profile;
 import org.keycloak.common.Profile.Feature;
@@ -480,6 +481,38 @@ public class DefaultExportImportManager implements ExportImportManager {
         }
 
         importOrganizations(rep, newRealm);
+    }
+
+    @Override
+    public PartialImportResults partialImportRealm(RealmModel realm, InputStream requestBody, String policy) {
+        PartialImportRepresentation.Policy policyModel;
+        try {
+            policyModel = PartialImportRepresentation.Policy.valueOf(policy.toUpperCase());
+        } catch (Exception e) {
+            throw new BadRequestException("policy is unknown.", e);
+        }
+
+        if (policyModel.equals(PartialImportRepresentation.Policy.RECOVER)) {
+            RealmRepresentation realmRepresentation;
+            try {
+                realmRepresentation = JsonSerialization.readValue(requestBody, RealmRepresentation.class);
+            } catch (IOException e) {
+                throw new ModelException("unable to read contents from stream", e);
+            }
+
+            ImportRealmFromRepresentationEvent.fire(session, realmRepresentation);
+
+            return new PartialImportResults();
+        } else {
+            PartialImportRepresentation rep;
+            try {
+                rep = JsonSerialization.readValue(requestBody, PartialImportRepresentation.class);
+                rep.setIfResourceExists(policy.toUpperCase());
+            } catch (IOException e) {
+                throw new ModelException("unable to read contents from stream", e);
+            }
+            return PartialImportRealmFromRepresentationEvent.fire(session, rep, realm);
+        }
     }
 
     @Override

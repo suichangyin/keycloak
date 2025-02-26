@@ -34,7 +34,7 @@ public class DefaultCookieProvider implements CookieProvider {
         }
 
         if (!secure) {
-            logger.warnf("Non-secure context detected; cookies are not secured, and will not be available in cross-origin POST requests");
+            logger.debugf("Non-secure context detected; cookies are not secured, and will not be available in cross-origin POST requests");
         }
 
         expireOldUnusedCookies();

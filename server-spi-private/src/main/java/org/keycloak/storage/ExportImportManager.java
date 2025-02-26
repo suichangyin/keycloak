@@ -35,6 +35,8 @@ import java.io.InputStream;
 public interface ExportImportManager {
     void importRealm(RealmRepresentation rep, RealmModel newRealm, boolean skipUserDependent);
 
+    PartialImportResults partialImportRealm(RealmModel realm, InputStream requestBody, String policy);
+
     PartialImportResults partialImportRealm(RealmModel realm, InputStream requestBody);
 
     void updateRealm(RealmRepresentation rep, RealmModel realm);
