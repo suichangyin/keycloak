@@ -16,31 +16,15 @@
  */
 package org.keycloak.services.resources.admin;
 
-import static org.keycloak.util.JsonSerialization.readValue;
-
-import java.io.InputStream;
-import java.security.cert.X509Certificate;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import com.fasterxml.jackson.core.type.TypeReference;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.NotAuthorizedException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
@@ -53,9 +37,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import jakarta.ws.rs.core.StreamingOutput;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
@@ -70,6 +51,7 @@ import org.keycloak.client.clienttype.ClientTypeManager;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.common.Profile;
 import org.keycloak.common.VerificationException;
+import org.keycloak.common.util.Encode;
 import org.keycloak.common.util.ObjectUtil;
 import org.keycloak.common.util.PemUtils;
 import org.keycloak.email.EmailTemplateProvider;
@@ -83,6 +65,8 @@ import org.keycloak.exportimport.ClientDescriptionConverter;
 import org.keycloak.exportimport.ClientDescriptionConverterFactory;
 import org.keycloak.exportimport.ExportAdapter;
 import org.keycloak.exportimport.ExportOptions;
+import org.keycloak.jose.jws.JWSInput;
+import org.keycloak.jose.jws.JWSInputException;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.ClientScopeModel;
 import org.keycloak.models.Constants;
@@ -102,6 +86,7 @@ import org.keycloak.models.utils.RepresentationToModel;
 import org.keycloak.organization.admin.resource.OrganizationsResource;
 import org.keycloak.partialimport.PartialImportResult;
 import org.keycloak.partialimport.PartialImportResults;
+import org.keycloak.representations.AccessToken;
 import org.keycloak.representations.adapters.action.GlobalRequestResult;
 import org.keycloak.representations.idm.AdminEventRepresentation;
 import org.keycloak.representations.idm.ClientRepresentation;
@@ -114,6 +99,7 @@ import org.keycloak.representations.idm.RealmEventsConfigRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.services.ErrorResponse;
+import org.keycloak.services.managers.AppAuthManager;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.managers.RealmManager;
 import org.keycloak.services.managers.ResourceAdminManager;
@@ -129,7 +115,28 @@ import org.keycloak.utils.GroupUtils;
 import org.keycloak.utils.ProfileHelper;
 import org.keycloak.utils.ReservedCharValidator;
 
+import java.io.InputStream;
+import java.security.cert.X509Certificate;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import static org.keycloak.services.resources.admin.RoleResource.ScopedRole;
+import static org.keycloak.util.JsonSerialization.readValue;
 
 /**
  * Base resource class for the admin REST api of one realm
@@ -1178,6 +1185,37 @@ public class RealmAdminResource {
                 .success();
     }
 
+    public class FullEvent {
+        @JsonUnwrapped
+        private EventRepresentation event;
+
+        private String username;
+        private String serverTime;
+
+        public FullEvent(EventRepresentation event) {
+            this.event = event;
+
+            if (event.getUserId() != null) {
+                UserModel user = session.users().getUserById(realm, event.getUserId());
+                if (user != null) {
+                    this.username = user.getUsername();
+                }
+            }
+
+            this.serverTime = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
+                    .withZone(ZoneId.systemDefault())
+                    .format(Instant.ofEpochMilli(event.getTime()));
+        }
+
+        public String getUsername() {
+            return this.username;
+        }
+
+        public String getServerTime() {
+            return this.serverTime;
+        }
+    }
+
     /**
      * Get events
      *
@@ -1199,7 +1237,7 @@ public class RealmAdminResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Tag(name = KeycloakOpenAPI.Admin.Tags.REALMS_ADMIN)
     @Operation( summary = "Get events Returns all events, or filters them based on URL query parameters listed here")
-    public Stream<EventRepresentation> getEvents(@Parameter(description = "The types of events to return") @QueryParam("type") List<String> types,
+    public Stream<FullEvent> getEvents(@Parameter(description = "The types of events to return") @QueryParam("type") List<String> types,
                                                  @Parameter(description = "App or oauth client name") @QueryParam("client") String client,
                                                  @Parameter(description = "User id") @QueryParam("user") String user,
                                                  @Parameter(description = "From date") @QueryParam("dateFrom") String dateFrom,
@@ -1262,7 +1300,141 @@ public class RealmAdminResource {
             query.maxResults(Constants.DEFAULT_MAX_RESULTS);
         }
 
-        return query.getResultStream().map(ModelToRepresentation::toRepresentation);
+        return query.getResultStream().map(ModelToRepresentation::toRepresentation).map(FullEvent::new);
+    }
+
+    /**
+     * Get events count
+     *
+     * Returns count of events
+     *
+     * @param types The types of events
+     * @param client App or oauth client name
+     * @param user User id
+     * @param ipAddress IP address
+     * @param dateTo To date
+     * @param dateFrom From date
+     * @return
+     */
+    @Path("events/count")
+    @GET
+    @NoCache
+    @Produces(MediaType.APPLICATION_JSON)
+    public Map<String, Long> getEventsCount(@QueryParam("type") List<String> types, @QueryParam("client") String client,
+                                            @QueryParam("user") String user, @QueryParam("username") String username,
+                                            @QueryParam("dateFrom") String dateFrom, @QueryParam("dateTo") String dateTo,
+                                            @QueryParam("ipAddress") String ipAddress) {
+        auth.realm().requireViewEvents();
+
+        EventStoreProvider eventStore = session.getProvider(EventStoreProvider.class);
+
+        EventQuery query = eventStore.createQuery().realm(realm.getId());
+        if (client != null) {
+            query.client(client);
+        }
+
+        if (types != null && !types.isEmpty()) {
+            EventType[] t = new EventType[types.size()];
+            for (int i = 0; i < t.length; i++) {
+                t[i] = EventType.valueOf(types.get(i));
+            }
+            query.type(t);
+        }
+
+        if (user != null) {
+            query.user(user);
+        } else if (username != null) {
+            UserModel userModel = session.users().getUserByUsername(realm, username);
+            if (userModel != null) {
+                return Collections.emptyMap();
+            }
+
+            query.user(userModel.getId());
+        }
+
+        if(dateFrom != null) {
+            SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+            Date from = null;
+            try {
+                from = df.parse(dateFrom);
+            } catch (ParseException e) {
+                throw new BadRequestException("Invalid value for 'Date(From)', expected format is yyyy-MM-dd");
+            }
+            query.fromDate(from);
+        }
+
+        if(dateTo != null) {
+            SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+            Date to = null;
+            try {
+                to = df.parse(dateTo);
+            } catch (ParseException e) {
+                throw new BadRequestException("Invalid value for 'Date(To)', expected format is yyyy-MM-dd");
+            }
+            query.toDate(to);
+        }
+
+        if (ipAddress != null) {
+            query.ipAddress(ipAddress);
+        }
+
+        return Collections.singletonMap("count", query.getResultStream().count());
+    }
+
+    public class FullAdminEvent {
+        @JsonUnwrapped
+        private AdminEventRepresentation event;
+
+        private String authUsername;
+        private String authClientId;
+        private String serverTime;
+
+        public FullAdminEvent(AdminEventRepresentation event) {
+            this.event = event;
+
+            String authRealmId = event.getAuthDetails().getRealmId();
+            RealmModel currentRealm = realm;
+            if (!currentRealm.getId().equals(authRealmId)) {
+                currentRealm = (new RealmManager(session)).getRealm(authRealmId);
+            }
+
+            if (currentRealm != null) {
+                UserModel user = session.users().getUserById(currentRealm, event.getAuthDetails().getUserId());
+                if (user != null) {
+                    this.authUsername = user.getUsername();
+                }
+
+                ClientModel client = realm.getClientById(event.getAuthDetails().getClientId());
+                if (client != null) {
+                    this.authClientId = client.getClientId();
+                }
+            }
+
+            this.serverTime = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
+                    .withZone(ZoneId.systemDefault())
+                    .format(Instant.ofEpochMilli(event.getTime()));
+        }
+
+        public String getAuthUsername() {
+            return this.authUsername;
+        }
+
+        public String getAuthClientId() {
+            return this.authClientId;
+        }
+
+        public String getServerTime() {
+            return this.serverTime;
+        }
+
+        @Override
+        public String toString() {
+            return "FullAdminEvent{" +
+                    ", authUsername='" + authUsername + '\'' +
+                    ", authClientId='" + authClientId + '\'' +
+                    ", serverTime='" + serverTime + '\'' +
+                    '}';
+        }
     }
 
     /**
@@ -1288,7 +1460,7 @@ public class RealmAdminResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Tag(name = KeycloakOpenAPI.Admin.Tags.REALMS_ADMIN)
     @Operation( summary = "Get admin events Returns all admin events, or filters events based on URL query parameters listed here")
-    public Stream<AdminEventRepresentation> getEvents(@QueryParam("operationTypes") List<String> operationTypes, @QueryParam("authRealm") String authRealm, @QueryParam("authClient") String authClient,
+    public Stream<FullAdminEvent> getEvents(@QueryParam("operationTypes") List<String> operationTypes, @QueryParam("authRealm") String authRealm, @QueryParam("authClient") String authClient,
                                                     @Parameter(description = "user id") @QueryParam("authUser") String authUser, @QueryParam("authIpAddress") String authIpAddress,
                                                     @QueryParam("resourcePath") String resourcePath, @QueryParam("dateFrom") String dateFrom,
                                                     @QueryParam("dateTo") String dateTo, @QueryParam("first") Integer firstResult,
@@ -1368,7 +1540,7 @@ public class RealmAdminResource {
             query.maxResults(Constants.DEFAULT_MAX_RESULTS);
         }
 
-        return query.getResultStream().map(ModelToRepresentation::toRepresentation);
+        return query.getResultStream().map(ModelToRepresentation::toRepresentation).map(FullAdminEvent::new);
     }
 
     /**
