@@ -213,14 +213,165 @@ public class GroupResource {
         }
     }
 
+    private Set<UserModel> getGroupAndSubGroupMembers(GroupModel group) {
+        Set<UserModel> users = new HashSet<>();
+
+        for (GroupModel child : group.getSubGroupsStream().collect(Collectors.toList())) {
+            users.addAll(getGroupAndSubGroupMembers(child));
+        }
+
+        users.addAll(session.users().getGroupMembersStream(realm, group).collect(Collectors.toList()));
+
+        return users;
+    }
+
     @DELETE
     @Tag(name = KeycloakOpenAPI.Admin.Tags.GROUPS)
     @Operation()
-    public void deleteGroup() {
+    public void deleteGroup(@QueryParam("deleteMembers") Boolean deleteMembers) {
         this.auth.groups().requireManage(group);
 
+        Set<UserModel> users = new HashSet<>();
+        if (deleteMembers != null && deleteMembers) {
+            this.auth.users().requireManage();
+            users = getGroupAndSubGroupMembers(group);
+        }
+
+//        LDAPStorageMapper ldapGroupMapper = getLDAPGroupMapper(session, realm);
+//
+//        if (ldapGroupMapper != null) {
+//            ldapGroupMapper.removeGroup(realm, group);
+//        }
+
         realm.removeGroup(group);
+
+        for (UserModel userModel:users) {
+            session.users().removeUser(realm, userModel);
+        }
+
         adminEvent.operation(OperationType.DELETE).resourcePath(session.getContext().getUri()).success();
+    }
+
+    @DELETE
+    @NoCache
+    @Path("target/none")
+    public void deleteGroupMoveMembers() {
+        this.auth.groups().requireManage(group);
+
+        List<String> members = session.users()
+                .getGroupMembersStream(realm, group)
+                .map(u -> u.getUsername())
+                .collect(Collectors.toList());
+        if (members.size() != 0) {
+            throw new BadRequestException(String.format("Moving members %s to realm is not allowed.", String.join(", ", members)));
+        }
+
+//        LDAPStorageMapper ldapGroupMapper = getLDAPGroupMapper(session, realm);
+//
+//        // move groups
+//        adminEvent.operation(OperationType.UPDATE).resource(ResourceType.GROUP);
+//        for (GroupModel child : group.getSubGroups()) {
+//            if (ldapGroupMapper != null) {
+//                ldapGroupMapper.moveGroup(child, null);
+//            }
+//            realm.moveGroup(child, null);
+//
+//            adminEvent.representation(ModelToRepresentation.toRepresentation(child, true))
+//                    .resourcePath("groups", child.getId())
+//                    .success();
+//        }
+//
+//        adminEvent.representation(ModelToRepresentation.toRepresentation(group, true));
+//
+//        if (ldapGroupMapper != null) {
+//            ldapGroupMapper.removeGroup(realm, group);
+//        }
+        realm.removeGroup(group);
+
+        adminEvent.operation(OperationType.DELETE).resourcePath(session.getContext().getUri()).success();
+    }
+
+
+    @DELETE
+    @NoCache
+    @Path("target/recycle")
+    public void deleteGroupMoveMembersToRecycle() {
+        this.auth.groups().requireManage(group);
+
+//        LDAPStorageMapper ldapGroupMapper = getLDAPGroupMapper(session, realm);
+//
+//        if (ldapGroupMapper != null) {
+//            ldapGroupMapper.removeGroup(realm, group);
+//        }
+        realm.removeGroup(group);
+
+        adminEvent.resource(ResourceType.GROUP)
+                .representation(ModelToRepresentation.toRepresentation(group, true))
+                .operation(OperationType.DELETE)
+                .resourcePath(session.getContext().getUri())
+                .success();
+    }
+
+    @DELETE
+    @NoCache
+    @Path("target/{id}")
+    public void deleteGroupMoveMembers(@PathParam("id") String id) {
+        this.auth.groups().requireManage(group);
+
+        GroupModel target = realm.getGroupById(id);
+        if (target == null) {
+            throw new NotFoundException(String.format("Could not find group by ID %s", id));
+        }
+
+        if (target.equals(group)) {
+            throw new BadRequestException("Target group must not be same with the group to be deleted.");
+        }
+
+        GroupModel parentGroup = target.getParent();
+        while (parentGroup != null) {
+            if (parentGroup.equals(group)) {
+                throw new BadRequestException("Target group must not be child or grandchild of the group to be deleted.");
+            }
+            parentGroup = parentGroup.getParent();
+        }
+
+        // move users
+        adminEvent.operation(OperationType.CREATE)
+                .resource(ResourceType.GROUP_MEMBERSHIP)
+                .representation(ModelToRepresentation.toRepresentation(target, true));
+
+        session.users().getGroupMembersStream(realm, group)
+                .filter(u -> u.isMemberOf(target))
+                .forEach(u -> {
+                    u.joinGroup(target);
+                    adminEvent.resourcePath("users", u.getId()).success();
+                });
+
+//        LDAPStorageMapper ldapGroupMapper = getLDAPGroupMapper(session, realm);
+
+        // move groups
+        adminEvent.operation(OperationType.UPDATE).resource(ResourceType.GROUP);
+        for (GroupModel child : group.getSubGroupsStream().collect(Collectors.toSet())) {
+//            if (ldapGroupMapper != null) {
+//                ldapGroupMapper.moveGroup(child, target);
+//            }
+            realm.moveGroup(child, target);
+
+            adminEvent.representation(ModelToRepresentation.toRepresentation(child, true))
+                    .resourcePath("groups", child.getId())
+                    .success();
+        }
+
+//        if (ldapGroupMapper != null) {
+//            ldapGroupMapper.removeGroup(realm, group);
+//        }
+        realm.removeGroup(group);
+
+        adminEvent.resource(ResourceType.GROUP)
+                .representation(ModelToRepresentation.toRepresentation(group, true))
+                .operation(OperationType.DELETE)
+                .resourcePath(session.getContext().getUri())
+                .success();
     }
 
     @GET
