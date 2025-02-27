@@ -7,7 +7,7 @@ License:        SMT
 Source0:        %{name}-%{version}.tar.gz
 
 BuildRequires:  maven, java-11-openjdk, tar
-Requires:       java-11-openjdk
+Requires:       java-17-openjdk
 
 Conflicts:      unicorn
 
@@ -17,10 +17,11 @@ BuildArch:      noarch
 This is a new unicorn Quarkus package built with Maven.
 
 %prep
-%setup -q
+#%setup -q
 
 %build
-export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
+export JAVA_HOME=$(/usr/sbin/alternatives --display jre_17 | grep 'priority' | awk '{print $1}')
+export PATH=${JAVA_HOME}/bin:$PATH
 mvn -pl quarkus/deployment,quarkus/dist -am -DskipTests -Dmaven.build.cache.enabled=false clean install
 
 mkdir -p %{_builddir}/tar_output

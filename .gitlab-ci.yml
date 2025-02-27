@@ -1,0 +1,74 @@
+variables:
+    NAME: unicorn2
+    PACKAGE: unicorn2
+    VERSION: 1.0.0
+    YUM_REPO_DIR: /repo/yum
+    OS_DIST: oe
+    OS_VERSION: 2403
+stages:
+    - build-package
+build-testing-noarch:
+    stage: build-package
+    tags:
+        - x86_64
+    rules:
+        - if: "$CI_COMMIT_BRANCH"
+    variables:
+        ARCH: noarch
+    script:
+        - mkdir -p rpmbuild/SOURCES
+        - >-
+            rpmbuild -bb $CI_PROJECT_DIR/$PACKAGE.spec
+            -D "_topdir $CI_PROJECT_DIR/rpmbuild"
+            -D "git_commit_hash $CI_COMMIT_SHORT_SHA"
+            -D "Version $VERSION" 
+            -D "Release $CI_PIPELINE_IID.dt"
+            -D "debug_package %{nil}"
+        # - rpm_dir="$YUM_REPO_DIR/$OS_DIST/$OS_VERSION/testing/$NAME/$CI_COMMIT_REF_NAME"
+        # - mkdir -p $rpm_dir
+        # - cp -f rpmbuild/SOURCES/$PACKAGE-$VERSION.tar.gz $rpm_dir
+        # - cp -f rpmbuild/RPMS/$ARCH/*.rpm $rpm_dir
+        # - repomanage -o $rpm_dir | xargs rm -fv
+
+# build-release-srpm:
+#     stage: build-package
+#     rules:
+#         - if: "$CI_COMMIT_TAG"
+#     script:
+#         - mkdir -p rpmbuild/SOURCES
+#         - chmod a+x build/build/configure
+#         - bash build/build/configure `pwd` $VERSION
+#         - >-
+#             rpmbuild -bs $CI_PROJECT_DIR/build/$PACKAGE.spec
+#             -D "_topdir $CI_PROJECT_DIR/rpmbuild"
+#             -D "git_commit_hash $CI_COMMIT_SHORT_SHA"
+#             -D "Version $VERSION" 
+#             -D "Release $CI_PIPELINE_IID.dt"
+#             -D "debug_package %{nil}"
+#         - repo_dir="$YUM_REPO_DIR/$OS_DIST/$OS_VERSION/Source"
+#         - mkdir -p $repo_dir/SPackages
+#         - cp -f rpmbuild/SRPMS/*.src.rpm $repo_dir/SPackages
+#         - createrepo $repo_dir
+# build-release-noarch:
+#     stage: build-package
+#     tags:
+#         - x86_64
+#     variables:
+#         ARCH: noarch
+#     rules:
+#         - if: "$CI_COMMIT_TAG"
+#     script:
+#         - mkdir -p rpmbuild/SOURCES
+#         - chmod a+x build/build/configure
+#         - bash build/build/configure `pwd` $VERSION
+#         - >-
+#             rpmbuild -bb $CI_PROJECT_DIR/build/$PACKAGE.spec
+#             -D "_topdir $CI_PROJECT_DIR/rpmbuild"
+#             -D "git_commit_hash $CI_COMMIT_SHORT_SHA"
+#             -D "Version $VERSION" 
+#             -D "Release $CI_PIPELINE_IID.dt"
+#             -D "debug_package %{nil}"
+#         - repo_dir="$YUM_REPO_DIR/$OS_DIST/$OS_VERSION/$ARCH"
+#         - mkdir -p $repo_dir/Packages
+#         - cp -f rpmbuild/RPMS/$ARCH/*.rpm $repo_dir/Packages
+#         - createrepo $repo_dir
