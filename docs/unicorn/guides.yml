@@ -3,8 +3,8 @@ build:
         ./mvnw -pl quarkus/deployment,quarkus/dist -am -DskipTests -Dmaven.build.cache.enabled=true clean install
     
 run:
-    windows:
-        .\kc.bat start --http-enabled=true --hostname-strict=false --http-port=9535 --https-port=9536
+    windows: 运行前都先build，避免代码不生效
+        .\kc.bat build && .\kc.bat start --http-enabled=true --hostname-strict=false --http-port=9535 --https-port=9536
 
 
 build run:
