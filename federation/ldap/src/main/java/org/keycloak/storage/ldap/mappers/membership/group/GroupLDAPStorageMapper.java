@@ -20,6 +20,7 @@ package org.keycloak.storage.ldap.mappers.membership.group;
 import org.jboss.logging.Logger;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.models.GroupModel;
+import org.keycloak.models.LDAPConstants;
 import org.keycloak.models.ModelException;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.RoleModel;
@@ -35,6 +36,8 @@ import org.keycloak.storage.ldap.idm.model.LDAPObject;
 import org.keycloak.storage.ldap.idm.query.Condition;
 import org.keycloak.storage.ldap.idm.query.internal.LDAPQuery;
 import org.keycloak.storage.ldap.idm.query.internal.LDAPQueryConditionsBuilder;
+import org.keycloak.storage.ldap.idm.store.ldap.LDAPIdentityStore;
+import org.keycloak.storage.ldap.idm.store.ldap.LDAPUtil;
 import org.keycloak.storage.ldap.mappers.AbstractLDAPStorageMapper;
 import org.keycloak.storage.ldap.mappers.membership.CommonLDAPGroupMapper;
 import org.keycloak.storage.ldap.mappers.membership.CommonLDAPGroupMapperConfig;
@@ -43,6 +46,8 @@ import org.keycloak.storage.ldap.mappers.membership.MembershipType;
 import org.keycloak.storage.ldap.mappers.membership.UserRolesRetrieveStrategy;
 import org.keycloak.storage.user.SynchronizationResult;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -122,15 +127,157 @@ public class GroupLDAPStorageMapper extends AbstractLDAPStorageMapper implements
             ldapQuery.addReturningLdapAttribute(groupAttr);
         }
 
+        List<String> objectClasses = new ArrayList<>(groupObjectClasses);
+        if (objectClasses.contains(LDAPConstants.POSIX_GROUP)) {
+            ldapQuery.addReturningLdapAttribute(LDAPConstants.GID_NUMBER);
+            ldapQuery.addReturningLdapAttribute(LDAPConstants.MEMBER_UID);
+        }
+        if (objectClasses.contains(LDAPConstants.SAMBA_GROUP_MAPPING)) {
+            ldapQuery.addReturningLdapAttribute(LDAPConstants.SAMBA_SID);
+        }
+
         return ldapQuery;
     }
 
     public LDAPObject createLDAPGroup(String groupName, Map<String, Set<String>> additionalAttributes) {
+        return createLDAPGroup(groupName, null, additionalAttributes);
+    }
+
+    public LDAPObject createLDAPGroup(String groupName, Integer gid, Map<String, Set<String>> additionalAttributes) {
+        boolean setNextGid = gid != null;
+        List<String> objectClasses = new ArrayList<>(config.getGroupObjectClasses(ldapProvider));
+        if (objectClasses.contains(LDAPConstants.POSIX_GROUP)) {
+            int nextGid = ldapProvider.getNextGidNumber();
+            if (gid == null) {
+                gid = nextGid;
+            }
+            if (!additionalAttributes.containsKey(LDAPConstants.GID_NUMBER)) {
+                setNextGid = gid >= nextGid;
+                additionalAttributes.put(LDAPConstants.GID_NUMBER, new HashSet<>(Arrays.asList(String.valueOf(gid))));
+            }
+            if (objectClasses.contains(LDAPConstants.POSIX_GROUP)) {
+                if (!additionalAttributes.containsKey(LDAPConstants.SAMBA_GROUP_TYPE)) {
+                    additionalAttributes.put(LDAPConstants.SAMBA_GROUP_TYPE, new HashSet<>(Arrays.asList(LDAPConstants.SAMAB_GROUP_TYPE_DOMAIN)));
+                }
+                if (setNextGid || !additionalAttributes.containsKey(LDAPConstants.SAMBA_SID)) {
+                    String domainSID = ldapProvider.getLdapIdentityStore().getConfig().getSambaDomainSID();
+                    additionalAttributes.put(LDAPConstants.SAMBA_SID, new HashSet<>(Arrays.asList(LDAPUtil.sambaGroupSID(domainSID, gid))));
+                }
+            }
+        }
+
         LDAPObject ldapGroup = LDAPUtils.createLDAPGroup(ldapProvider, groupName, config.getGroupNameLdapAttribute(), config.getGroupObjectClasses(ldapProvider),
                 config.getGroupsDn(), additionalAttributes, config.getMembershipLdapAttribute());
 
+        if (setNextGid) {
+            ldapProvider.setNextGidNumber(gid + 1);
+        }
+
         logger.debugf("Creating group [%s] to LDAP with DN [%s]", groupName, ldapGroup.getDn().toString());
         return ldapGroup;
+    }
+
+    @Override
+    public void addGroup(GroupModel kcGroup, Integer gid) {
+        LDAPObject group = addLDAPGroup(kcGroup, gid);
+        GroupModel parentGroup = kcGroup.getParent();
+        if (parentGroup != null) {
+            LDAPObject ldapParentGroup = loadLDAPGroupByName(parentGroup.getName());
+            if (ldapParentGroup != null) {
+                String membershipUserLdapAttrName = getMembershipUserLdapAttribute(); // Not applicable for groups, but needs to be here
+                LDAPUtils.addMember(ldapProvider, MembershipType.DN, config.getMembershipLdapAttribute(), membershipUserLdapAttrName, ldapParentGroup, group);
+            }
+        }
+    }
+
+    private LDAPObject addLDAPGroup(GroupModel kcGroup, Integer gid) {
+        // extract group attributes to be updated to LDAP
+        Map<String, Set<String>> supportedLdapAttributes = new HashMap<>();
+        for (String attrName : config.getGroupAttributes()) {
+            List<String> kcAttrValues = kcGroup.getAttributes().get(attrName);
+            Set<String> attrValues2 = (kcAttrValues == null || kcAttrValues.isEmpty()) ? null : new HashSet<>(kcAttrValues);
+            supportedLdapAttributes.put(attrName, attrValues2);
+        }
+
+        String groupName = kcGroup.getName();
+        LDAPObject ldapGroup = loadLDAPGroupByName(groupName);
+        if (ldapGroup == null) {
+            ldapGroup = createLDAPGroup(groupName, gid, supportedLdapAttributes);
+        } else {
+            for (Map.Entry<String, Set<String>> attrEntry : supportedLdapAttributes.entrySet()) {
+                ldapGroup.setAttribute(attrEntry.getKey(), attrEntry.getValue());
+            }
+            ldapProvider.getLdapIdentityStore().update(ldapGroup);
+        }
+
+        return ldapGroup;
+    }
+
+    @Override
+    public void moveGroup(GroupModel kcGroup, GroupModel kcParent) {
+        LDAPObject group = loadLDAPGroupByName(kcGroup.getName());
+        if (group == null) {
+            return;
+        }
+
+        String membershipUserLdapAttrName = getMembershipUserLdapAttribute();
+
+        GroupModel kcOldParent = kcGroup.getParent();
+        if (kcOldParent != null) {
+            LDAPObject parent = loadLDAPGroupByName(kcOldParent.getName());
+            if (parent != null) {
+                LDAPUtils.deleteMember(ldapProvider, MembershipType.DN, config.getMembershipLdapAttribute(), membershipUserLdapAttrName, parent, group);
+            }
+        }
+
+        if (kcParent != null) {
+            LDAPObject parent = loadLDAPGroupByName(kcParent.getName());
+            if (parent != null) {
+                LDAPUtils.addMember(ldapProvider, MembershipType.DN, config.getMembershipLdapAttribute(), membershipUserLdapAttrName, parent, group);
+            }
+        }
+    }
+
+    @Override
+    public void removeGroup(RealmModel realm, GroupModel kcGroup) {
+        LDAPObject group = loadLDAPGroupByName(kcGroup.getName());
+        if (group == null) {
+            return;
+        }
+
+        kcGroup.getSubGroupsStream().forEach(g -> removeGroup(realm, g));
+
+        // remove user memberships
+        for (UserModel kcUser : getGroupMembers(realm, kcGroup, 0, Integer.MAX_VALUE - 1)) {
+            leaveGroup(realm, kcUser, kcGroup);
+        }
+
+        String membershipUserLdapAttrName = getMembershipUserLdapAttribute();
+
+        GroupModel kcParent = kcGroup.getParent();
+        if (kcParent != null) {
+            LDAPObject parentGroup = loadLDAPGroupByName(kcParent.getName());
+            if (parentGroup != null) {
+                LDAPUtils.deleteMember(ldapProvider, MembershipType.DN, config.getMembershipLdapAttribute(), membershipUserLdapAttrName, parentGroup, group);
+            }
+        }
+
+        ldapProvider.getLdapIdentityStore().remove(group);
+    }
+
+    @Override
+    public void leaveGroup(RealmModel realm, UserModel kcUser, GroupModel kcGroup) {
+        LDAPObject ldapGroup = loadLDAPGroupByName(kcGroup.getName());
+        if (ldapGroup == null) {
+            return;
+        }
+
+        LDAPObject ldapUser = ldapProvider.loadAndValidateUser(realm, kcUser);
+        if (ldapUser == null) {
+            return;
+        }
+
+        deleteGroupMappingInLDAP(kcUser, kcGroup, ldapUser, ldapGroup);
     }
 
     public LDAPObject loadLDAPGroupByName(String groupName) {
@@ -640,11 +787,91 @@ public class GroupLDAPStorageMapper extends AbstractLDAPStorageMapper implements
         String membershipUserLdapAttrName = getMembershipUserLdapAttribute();
 
         LDAPUtils.addMember(ldapProvider, config.getMembershipTypeLdapAttribute(), config.getMembershipLdapAttribute(), membershipUserLdapAttrName, ldapGroup, ldapUser);
+
+        LDAPIdentityStore ldapStore = ldapProvider.getLdapIdentityStore();
+        if (ldapUser.getAttributeAsString(LDAPConstants.GID_NUMBER).equals(LDAPConstants.GID_NOBODY)) {
+            ldapUser.setSingleAttribute(LDAPConstants.GID_NUMBER, ldapGroup.getAttributeAsString(LDAPConstants.GID_NUMBER));
+            ldapUser.setSingleAttribute(LDAPConstants.SAMBA_PRIMARY_GROUP_SID, ldapGroup.getAttributeAsString(LDAPConstants.SAMBA_SID));
+            ldapStore.update(ldapUser);
+        }
+
+        addMemberUid(ldapStore, kcGroup, ldapUser.getAttributeAsString(LDAPConstants.UID_NUMBER));
+    }
+
+    public void addMemberUid(LDAPIdentityStore ldapStore, GroupModel kcGroup, String uidNumber) {
+        if (kcGroup == null) {
+            return;
+        }
+
+        String groupName = kcGroup.getName();
+        LDAPObject ldapGroup = loadLDAPGroupByName(groupName);
+
+        Set<String> memberUids = ldapGroup.getAttributeAsSet(LDAPConstants.MEMBER_UID);
+        if (memberUids == null) {
+            memberUids = new HashSet<>();
+        }
+        if (memberUids.add(uidNumber)) {
+            ldapGroup.setAttribute(LDAPConstants.MEMBER_UID, memberUids);
+            ldapStore.update(ldapGroup);
+        }
+
+        addMemberUid(ldapStore, kcGroup.getParent(), uidNumber);
     }
 
     public void deleteGroupMappingInLDAP(LDAPObject ldapUser, LDAPObject ldapGroup) {
         String membershipUserLdapAttrName = getMembershipUserLdapAttribute();
         LDAPUtils.deleteMember(ldapProvider, config.getMembershipTypeLdapAttribute(), config.getMembershipLdapAttribute(), membershipUserLdapAttrName, ldapGroup, ldapUser);
+    }
+
+    public void deleteGroupMappingInLDAP(UserModel kcUser, GroupModel kcGroup, LDAPObject ldapUser, LDAPObject ldapGroup) {
+        LDAPIdentityStore ldapStore = ldapProvider.getLdapIdentityStore();
+        deleteMemberUid(ldapStore, kcUser, kcGroup, kcGroup.getId(), ldapUser.getAttributeAsString(LDAPConstants.UID_NUMBER));
+
+        boolean flag = false;
+        String groupGid = ldapGroup.getAttributeAsString(LDAPConstants.GID_NUMBER);
+        String userGid = ldapUser.getAttributeAsString(LDAPConstants.GID_NUMBER);
+        if (Objects.equals(groupGid, userGid)) {
+            for (GroupModel g : kcUser.getGroupsStream().collect(Collectors.toList())) {
+                if (!g.getId().equals(kcGroup.getId())) {
+                    LDAPObject lg = loadLDAPGroupByName(g.getName());
+                    if (lg != null) {
+                        ldapUser.setSingleAttribute(LDAPConstants.GID_NUMBER, lg.getAttributeAsString(LDAPConstants.GID_NUMBER));
+                        ldapUser.setSingleAttribute(LDAPConstants.SAMBA_PRIMARY_GROUP_SID, lg.getAttributeAsString(LDAPConstants.SAMBA_SID));
+                        flag = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!flag && Objects.equals(groupGid, userGid)) {
+            ldapUser.setSingleAttribute(LDAPConstants.GID_NUMBER, LDAPConstants.GID_NOBODY);
+            ldapUser.setAttribute(LDAPConstants.SAMBA_PRIMARY_GROUP_SID, new HashSet<>());
+        }
+        ldapStore.update(ldapUser);
+
+        deleteGroupMappingInLDAP(ldapUser, ldapGroup);
+    }
+
+    public void deleteMemberUid(LDAPIdentityStore ldapStore, UserModel kcUser, GroupModel kcGroup, String groupId, String uidNumber) {
+        if (kcGroup == null) {
+            return;
+        }
+
+        if (kcGroup.getId().equals(groupId) || !kcUser.isMemberOf(kcGroup)) {
+            String groupName = kcGroup.getName();
+            LDAPObject ldapGroup = loadLDAPGroupByName(groupName);
+
+            Set<String> memberUids = ldapGroup.getAttributeAsSet(LDAPConstants.MEMBER_UID);
+            if (memberUids != null) {
+                if (memberUids.remove(uidNumber)) {
+                    ldapGroup.setAttribute(LDAPConstants.MEMBER_UID, memberUids);
+                    ldapStore.update(ldapGroup);
+                }
+            }
+        }
+
+        deleteMemberUid(ldapStore, kcUser, kcGroup.getParent(), groupId, uidNumber);
     }
 
     protected List<LDAPObject> getLDAPGroupMappings(LDAPObject ldapUser) {

@@ -252,6 +252,18 @@ public class LDAPConfig {
         return binaryAttributeNames;
     }
 
+    public String getSambaDomainName() {
+        return config.getFirst(LDAPConstants.SAMBA_DOMAIN_NAME);
+    }
+
+    public String getSambaDomainSID() {
+        return config.getFirst(LDAPConstants.SAMBA_DOMAIN_SID);
+    }
+
+    public String getSambaUnixIdPoolDN() {
+        return config.getFirst(LDAPConstants.SAMBA_UNIX_ID_POOL_DN);
+    }
+
     public boolean isConnectionTrace() {
         return Boolean.parseBoolean(config.getFirstOrDefault(LDAPConstants.CONNECTION_TRACE, Boolean.FALSE.toString()));
     }

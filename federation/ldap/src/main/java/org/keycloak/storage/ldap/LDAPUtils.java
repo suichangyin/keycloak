@@ -18,6 +18,8 @@
 package org.keycloak.storage.ldap;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,6 +37,7 @@ import org.jboss.logging.Logger;
 import org.keycloak.common.constants.KerberosConstants;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.component.ComponentValidationException;
+import org.keycloak.models.Constants;
 import org.keycloak.models.LDAPConstants;
 import org.keycloak.models.ModelException;
 import org.keycloak.models.RealmModel;
@@ -48,6 +51,7 @@ import org.keycloak.storage.ldap.idm.query.Condition;
 import org.keycloak.storage.ldap.idm.query.internal.LDAPQuery;
 import org.keycloak.storage.ldap.idm.query.internal.LDAPQueryConditionsBuilder;
 import org.keycloak.storage.ldap.idm.store.ldap.LDAPIdentityStore;
+import org.keycloak.storage.ldap.idm.store.ldap.LDAPUtil;
 import org.keycloak.storage.ldap.mappers.LDAPMappersComparator;
 import org.keycloak.storage.ldap.mappers.LDAPStorageMapper;
 import org.keycloak.storage.ldap.mappers.membership.MembershipType;
@@ -114,6 +118,57 @@ public class LDAPUtils {
                 .collect(Collectors.toSet());
         mandatoryAttrs.add(ldapConfig.getRdnLdapAttribute());
 
+        Set<String> reqActions = user.getRequiredActionsStream().collect(Collectors.toSet());
+        boolean pwdMustUpdate = reqActions.contains(UserModel.RequiredAction.UPDATE_PASSWORD.name());
+
+        boolean setNextUid = uid != null;
+        List<String> objectClasses = new ArrayList<>(ldapStore.getConfig().getUserObjectClasses());
+        if (objectClasses.contains(LDAPConstants.POSIX_ACCOUNT)) {
+            int nextUid = ldapProvider.getNextUidNumber();
+            if (uid == null) {
+                uid = nextUid;
+            }
+            if (LDAPUtil.setSingleAttributeIfNotExist(ldapUser, LDAPConstants.UID_NUMBER, String.valueOf(uid))) {
+                setNextUid = uid >= nextUid;
+            }
+            LDAPUtil.setSingleAttributeIfNotExist(ldapUser, LDAPConstants.GID_NUMBER, LDAPConstants.GID_NOBODY);
+            LDAPUtil.setSingleAttributeIfNotExist(ldapUser, LDAPConstants.HOME_DIRECTORY, String.format("/home/%s", user.getUsername()));
+            LDAPUtil.setSingleAttributeIfNotExist(ldapUser, LDAPConstants.LOGIN_SHELL, "/sbin/nologin");
+
+            if (objectClasses.contains(LDAPConstants.SAMBA_SAM_ACCOUNT)) {
+                List<String> acctFlags = new ArrayList<>(Arrays.asList(LDAPConstants.SAMAB_ACCT_TYPE_REGULAR));
+                if (!user.isEnabled()) {
+                    acctFlags.add(LDAPConstants.SAMAB_ACCT_DISABLED);
+                }
+
+                if (pwdMustUpdate) {
+                    ldapUser.setSingleAttribute(LDAPConstants.SHADOW_MAX, "0");
+                    ldapUser.setSingleAttribute(LDAPConstants.SAMBA_PWD_LAST_SET, "0");
+                    LDAPUtil.setSingleAttributeIfNotExist(ldapUser, LDAPConstants.SAMBA_PWD_MUST_CHANGE, "0");
+                } else {
+                    acctFlags.add(LDAPConstants.SAMAB_ACCT_PWD_NOT_EXPIRE);
+                    ldapUser.setSingleAttribute(LDAPConstants.SAMBA_PWD_LAST_SET, Long.toString(System.currentTimeMillis() / 1000L));
+                }
+
+                String sid = LDAPUtil.sambaUserSID(ldapStore.getConfig().getSambaDomainSID(), uid);
+                LDAPUtil.setSingleAttributeIfNotExist(ldapUser, LDAPConstants.SAMBA_SID, sid);
+
+                String flags = LDAPUtil.sambaAcctFlags(acctFlags.toArray(new String[acctFlags.size()]));
+                ldapUser.setSingleAttribute(LDAPConstants.SAMBA_ACCT_FLAGS, flags);
+                ldapUser.setSingleAttribute(LDAPConstants.SAMBA_NT_PASSWORD, CredentialUtils.ntlmHash(Constants.DEFAULT_PASSWORD));
+                ldapUser.setSingleAttribute(LDAPConstants.SAMBA_PWD_LAST_SET, Long.toString(System.currentTimeMillis() / 1000L));
+            }
+        }
+        if (objectClasses.contains(LDAPConstants.SHADOW_ACCOUNT)) {
+            if (!user.isEnabled()) {
+                LDAPUtil.setSingleAttributeIfNotExist(ldapUser, LDAPConstants.SHADOW_EXPIRE, "0");
+            }
+            if (pwdMustUpdate) {
+                ldapUser.setSingleAttribute(LDAPConstants.SHADOW_MAX, "0");
+            }
+        }
+        ldapUser.setSingleAttribute(LDAPConstants.USER_PASSWORD_ATTRIBUTE, CredentialUtils.sshaHash(Constants.DEFAULT_PASSWORD));
+
         ldapUser.executeOnMandatoryAttributesComplete(mandatoryAttrs, ldapObject -> {
             LDAPUtils.computeAndSetDn(ldapConfig, ldapObject);
             ldapStore.add(ldapObject);
@@ -121,6 +176,12 @@ public class LDAPUtils {
                 consumerOnCreated.accept(ldapObject);
             }
         });
+
+        if (setNextUid) {
+            ldapProvider.setNextUidNumber(uid + 1);
+        }
+
+
         return ldapUser;
     }
 
@@ -130,6 +191,22 @@ public class LDAPUtils {
         ldapQuery.setSearchScope(config.getSearchScope());
         ldapQuery.setSearchDn(config.getUsersDn());
         ldapQuery.addObjectClasses(config.getUserObjectClasses());
+
+        List<String> objectClasses = new ArrayList<>(config.getUserObjectClasses());
+        if (objectClasses.contains(LDAPConstants.POSIX_ACCOUNT)) {
+            ldapQuery.addReturningLdapAttribute(LDAPConstants.UID_NUMBER);
+            ldapQuery.addReturningLdapAttribute(LDAPConstants.GID_NUMBER);
+        }
+        if (objectClasses.contains(LDAPConstants.SHADOW_ACCOUNT)) {
+            ldapQuery.addReturningLdapAttribute(LDAPConstants.SHADOW_EXPIRE);
+            ldapQuery.addReturningLdapAttribute(LDAPConstants.SHADOW_MAX);
+        }
+        if (objectClasses.contains(LDAPConstants.SAMBA_SAM_ACCOUNT)) {
+            ldapQuery.addReturningLdapAttribute(LDAPConstants.SAMBA_ACCT_FLAGS);
+            ldapQuery.addReturningLdapAttribute(LDAPConstants.SAMBA_PRIMARY_GROUP_SID);
+            ldapQuery.addReturningLdapAttribute(LDAPConstants.SAMBA_PWD_LAST_SET);
+            ldapQuery.addReturningLdapAttribute(LDAPConstants.SAMBA_PWD_MUST_CHANGE);
+        }
 
         String customFilter = config.getCustomUserSearchFilter();
         if (customFilter != null) {
@@ -147,6 +224,15 @@ public class LDAPUtils {
             ldapQuery.addReturningLdapAttribute(kerberosPrincipalAttr);
             ldapQuery.addReturningReadOnlyLdapAttribute(kerberosPrincipalAttr);
         }
+
+        return ldapQuery;
+    }
+
+    public static LDAPQuery createQueryForObject(LDAPStorageProvider ldapProvider, String dn) {
+        LDAPQuery ldapQuery = new LDAPQuery(ldapProvider);
+        ldapQuery.setSearchScope(SearchControls.OBJECT_SCOPE);
+        ldapQuery.setSearchDn(dn);
+        ldapQuery.addReturningLdapAttribute("*");
 
         return ldapQuery;
     }

@@ -95,6 +95,10 @@ public class LDAPConstants {
     // Could be discovered by rootDse supportedExtension: 1.3.6.1.4.1.1466.20037
     public static final String START_TLS = "startTls";
 
+    public static final String SAMBA_DOMAIN_NAME = "sambaDomainName";
+    public static final String SAMBA_DOMAIN_SID = "sambaDomainSID";
+    public static final String SAMBA_UNIX_ID_POOL_DN = "sambaUnixIdPoolDN";
+
     // Custom attributes on UserModel, which is mapped to LDAP
     public static final String LDAP_ID = "LDAP_ID";
     public static final String LDAP_ENTRY_DN = "LDAP_ENTRY_DN";
@@ -138,6 +142,41 @@ public class LDAPConstants {
     public static final String NOVELL_EDIRECTORY_GUID = "guid";
     public static final String CREATE_TIMESTAMP = "createTimestamp";
     public static final String MODIFY_TIMESTAMP = "modifyTimestamp";
+
+    public static final String POSIX_ACCOUNT = "posixAccount";
+    public static final String POSIX_GROUP = "posixGroup";
+    public static final String SHADOW_ACCOUNT = "shadowAccount";
+    public static final String UID_NUMBER = "uidNumber";
+    public static final String GID_NUMBER = "gidNumber";
+    public static final String MEMBER_UID = "memberUid";
+    public static final String LOGIN_SHELL = "loginShell";
+    public static final String HOME_DIRECTORY = "homeDirectory";
+    public static final String SHADOW_EXPIRE = "shadowExpire";
+    public static final String SHADOW_MAX = "shadowMax";
+
+    public static final String SAMBA_UNIX_ID_POOL = "sambaUnixIdPool";
+    public static final String SAMBA_SAM_ACCOUNT = "sambaSamAccount";
+    public static final String SAMBA_GROUP_MAPPING = "sambaGroupMapping";
+    public static final String SAMBA_SID = "sambaSID";
+    public static final String SAMBA_ACCT_FLAGS = "sambaAcctFlags";
+    public static final String SAMBA_LOGON_TIME = "sambaLogonTime";
+    public static final String SAMBA_LOGOFF_TIME = "sambaLogoffTime";
+    public static final String SAMBA_KICKOFF_TIME = "sambaKickoffTime";
+    public static final String SAMBA_NT_PASSWORD = "sambaNTPassword";
+    public static final String SAMBA_PWD_MUST_CHANGE = "sambaPwdMustChange";
+    public static final String SAMBA_PWD_CAN_CHANGE = "sambaPwdCanChange";
+    public static final String SAMBA_PWD_LAST_SET = "sambaPwdLastSet";
+    public static final String SAMBA_PASSWORD_HISTORY = "sambaPasswordHistory";
+    public static final String SAMBA_PRIMARY_GROUP_SID = "sambaPrimaryGroupSID";
+    public static final String SAMBA_GROUP_TYPE = "sambaGroupType";
+
+    public static final String GID_NOBODY = "99";
+    public static final String SAMAB_GROUP_TYPE_DOMAIN = "2";
+    public static final String SAMAB_ACCT_TYPE_REGULAR = "U";
+    public static final String SAMAB_ACCT_PWD_NOT_EXPIRE = "X";
+    public static final String SAMAB_ACCT_DISABLED = "D";
+    public static final String SAMAB_ACCT_LOCKED = "L";
+    public static final String SAMAB_TIME_NEVER = "2147483647";
 
     public static final String LDAP_MATCHING_RULE_IN_CHAIN = ":1.2.840.113556.1.4.1941:";
 

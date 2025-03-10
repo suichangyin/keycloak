@@ -703,4 +703,16 @@ public class Encode
       return decode(string);
    }
 
+    public static byte[] unicodeBytes(String string) {
+        return string.getBytes(StandardCharsets.UTF_16LE);
+    }
+
+    public static String hexString(byte[] data) {
+        StringBuffer buffer = new StringBuffer();
+        for (int i = 0; i < data.length; i++) {
+            buffer.append(String.format("%02X", data[i]));
+        }
+        return buffer.toString();
+    }
+
 }

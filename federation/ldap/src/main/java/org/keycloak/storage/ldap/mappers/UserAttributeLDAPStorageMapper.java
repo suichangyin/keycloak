@@ -35,11 +35,14 @@ import org.keycloak.storage.ldap.LDAPUtils;
 import org.keycloak.storage.ldap.idm.model.LDAPObject;
 import org.keycloak.storage.ldap.idm.query.Condition;
 import org.keycloak.storage.ldap.idm.query.internal.LDAPQuery;
+import org.keycloak.storage.ldap.idm.store.ldap.LDAPUtil;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -260,8 +263,78 @@ public class UserAttributeLDAPStorageMapper extends AbstractLDAPStorageMapper {
 
                 @Override
                 public void setEnabled(boolean enabled) {
-                    setLDAPAttribute(UserModel.ENABLED, Boolean.toString(enabled));
+                    List<String> objectClasses = ldapUser.getObjectClasses();
+                    if (objectClasses.contains(LDAPConstants.SHADOW_ACCOUNT)) {
+                        if (enabled) {
+                            ldapUser.setAttribute(LDAPConstants.SHADOW_EXPIRE, new LinkedHashSet<String>());
+                        } else {
+                            ldapUser.setSingleAttribute(LDAPConstants.SHADOW_EXPIRE, "0");
+                        }
+                    }
+                    if (objectClasses.contains(LDAPConstants.SAMBA_SAM_ACCOUNT)) {
+                        String acctFlags = ldapUser.getAttributeAsString(LDAPConstants.SAMBA_ACCT_FLAGS);
+                        List<String> flags = new ArrayList<>(Arrays.asList(LDAPUtil.parseSambaAcctFlags(acctFlags)));
+                        boolean disabled = flags.contains(LDAPConstants.SAMAB_ACCT_DISABLED);
+                        if (!disabled != enabled) {
+                            if (enabled) {
+                                flags.removeAll(Collections.singleton(LDAPConstants.SAMAB_ACCT_DISABLED));
+                            } else {
+                                flags.add(LDAPConstants.SAMAB_ACCT_DISABLED);
+                            }
+                            ldapUser.setSingleAttribute(LDAPConstants.SAMBA_ACCT_FLAGS, LDAPUtil.sambaAcctFlags(flags.toArray(new String[flags.size()])));
+                        }
+                    }
                     super.setEnabled(enabled);
+                }
+
+                @Override
+                public void addRequiredAction(String action) {
+                    if (UserModel.RequiredAction.UPDATE_PASSWORD.name().equals(action)) {
+                        List<String> objectClasses = ldapUser.getObjectClasses();
+                        if (objectClasses.contains(LDAPConstants.SHADOW_ACCOUNT)) {
+                            if (!"0".equals(ldapUser.getAttributeAsString(LDAPConstants.SHADOW_MAX))) {
+                                ldapUser.setSingleAttribute(LDAPConstants.SHADOW_MAX, "0");
+                            }
+                        }
+                        if (objectClasses.contains(LDAPConstants.SAMBA_SAM_ACCOUNT)) {
+                            ldapUser.setSingleAttribute(LDAPConstants.SAMBA_PWD_LAST_SET, "0");
+                            ldapUser.setSingleAttribute(LDAPConstants.SAMBA_PWD_MUST_CHANGE, "0");
+
+                            String acctFlags = ldapUser.getAttributeAsString(LDAPConstants.SAMBA_ACCT_FLAGS);
+                            String newFlags = LDAPUtil.removeSambaAcctFlag(acctFlags, LDAPConstants.SAMAB_ACCT_PWD_NOT_EXPIRE);
+                            ldapUser.setSingleAttribute(LDAPConstants.SAMBA_ACCT_FLAGS, newFlags);
+                        }
+                    }
+                    super.addRequiredAction(action);
+                }
+
+                @Override
+                public void addRequiredAction(RequiredAction action) {
+                    addRequiredAction(action.name());
+                }
+
+                @Override
+                public void removeRequiredAction(String action) {
+                    if (UserModel.RequiredAction.UPDATE_PASSWORD.name().equals(action)) {
+                        List<String> objectClasses = ldapUser.getObjectClasses();
+                        if (objectClasses.contains(LDAPConstants.SHADOW_ACCOUNT)) {
+                            ldapUser.setAttribute(LDAPConstants.SHADOW_MAX, new HashSet<String>());
+                        }
+                        if (objectClasses.contains(LDAPConstants.SAMBA_SAM_ACCOUNT)) {
+                            ldapUser.setAttribute(LDAPConstants.SAMBA_PWD_MUST_CHANGE, new HashSet<String>());
+                            ldapUser.setSingleAttribute(LDAPConstants.SAMBA_PWD_LAST_SET, Long.toString(System.currentTimeMillis() / 1000L));
+
+                            String acctFlags = ldapUser.getAttributeAsString(LDAPConstants.SAMBA_ACCT_FLAGS);
+                            String newFlags = LDAPUtil.addSambaAcctFlag(acctFlags, LDAPConstants.SAMAB_ACCT_PWD_NOT_EXPIRE);
+                            ldapUser.setSingleAttribute(LDAPConstants.SAMBA_ACCT_FLAGS, newFlags);
+                        }
+                    }
+                    super.removeRequiredAction(action);
+                }
+
+                @Override
+                public void removeRequiredAction(RequiredAction action) {
+                    removeRequiredAction(action.name());
                 }
 
                 @Override

@@ -51,6 +51,11 @@ public interface LDAPStorageMapper extends Provider {
      **/
     SynchronizationResult syncDataFromKeycloakToFederationProvider(RealmModel realm);
 
+    void addGroup(GroupModel kcGroup, Integer gid);
+    void moveGroup(GroupModel kcGroup, GroupModel kcParent);
+    void removeGroup(RealmModel realm, GroupModel kcGroup);
+    void leaveGroup(RealmModel realm, UserModel kcUser, GroupModel kcGroup);
+
     /**
      * Return empty list if doesn't support storing of groups
      */

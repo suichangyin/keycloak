@@ -751,11 +751,47 @@ public class LDAPStorageProvider implements UserStorageProvider,
         }
     }
 
+    protected LDAPObject getSambaUnixIdPool(String dn) {
+        LDAPObject result;
+        try (LDAPQuery ldapQuery = LDAPUtils.createQueryForObject(this, dn)) {
+            result = ldapQuery.getFirstResult();
+        }
+
+        return result;
+    }
+
+    protected int getNextUnixId(String attrName) {
+        LDAPObject idPool = getSambaUnixIdPool(ldapIdentityStore.getConfig().getSambaUnixIdPoolDN());
+        return Integer.parseInt(idPool.getAttributeAsString(attrName));
+    }
+
+    public int getNextUidNumber() {
+        return getNextUnixId(LDAPConstants.UID_NUMBER);
+    }
+
+    public int getNextGidNumber() {
+        return getNextUnixId(LDAPConstants.GID_NUMBER);
+    }
+
+    protected void setNextUnixId(String attrName, int id) {
+        LDAPObject idPool = getSambaUnixIdPool(ldapIdentityStore.getConfig().getSambaUnixIdPoolDN());
+        idPool.setSingleAttribute(attrName, String.valueOf(id));
+        ldapIdentityStore.update(idPool);
+    }
+
+    public void setNextUidNumber(int id) {
+        setNextUnixId(LDAPConstants.UID_NUMBER, id);
+    }
+
+    public void setNextGidNumber(int id) {
+        setNextUnixId(LDAPConstants.GID_NUMBER, id);
+    }
+
     /**
      * @param local
      * @return ldapUser corresponding to local user or null if user is no longer in LDAP
      */
-    protected LDAPObject loadAndValidateUser(RealmModel realm, UserModel local) {
+    public LDAPObject loadAndValidateUser(RealmModel realm, UserModel local) {
         // getFirstAttribute triggers validation and another call to this method, so we run it before checking the cache
         String uuidLdapAttribute = local.getFirstAttribute(LDAPConstants.LDAP_ID);
 

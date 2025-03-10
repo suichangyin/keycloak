@@ -29,6 +29,7 @@ import org.keycloak.storage.user.SynchronizationResult;
 import javax.naming.AuthenticationException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.keycloak.models.RoleModel;
 
@@ -57,6 +58,26 @@ public abstract class AbstractLDAPStorageMapper implements LDAPStorageMapper {
     @Override
     public SynchronizationResult syncDataFromKeycloakToFederationProvider(RealmModel realm) {
         return new SynchronizationResult();
+    }
+
+    public void addGroup(GroupModel kcGroup, Integer gid) {
+        return;
+    }
+
+    public void moveGroup(GroupModel kcGroup, GroupModel kcParent) {
+        return;
+    }
+
+    public void removeGroup(RealmModel realm, GroupModel kcGroup) {
+        return;
+    }
+
+    public void leaveGroup(RealmModel realm, UserModel kcUser, GroupModel kcGroup) {
+        return;
+    }
+
+    public Map<String, GroupModel> getGroupsMap(RealmModel realm) {
+        return Collections.<String, GroupModel>emptyMap();
     }
 
     @Override

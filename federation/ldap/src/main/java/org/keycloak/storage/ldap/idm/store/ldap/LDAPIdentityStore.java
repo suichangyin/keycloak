@@ -20,6 +20,7 @@ package org.keycloak.storage.ldap.idm.store.ldap;
 import javax.naming.NameAlreadyBoundException;
 import org.jboss.logging.Logger;
 import org.keycloak.common.util.Base64;
+import org.keycloak.storage.ldap.CredentialUtils;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.LDAPConstants;
 import org.keycloak.models.ModelException;
@@ -359,6 +360,10 @@ public class LDAPIdentityStore implements IdentityStore {
 
     @Override
     public void updatePassword(LDAPObject user, String password, LDAPOperationDecorator passwordUpdateDecorator) {
+        updatePassword(user, password, passwordUpdateDecorator, false);
+    }
+
+    public void updatePassword(LDAPObject user, String password, LDAPOperationDecorator passwordUpdateDecorator, boolean isTemporary) {
         if (logger.isDebugEnabled()) {
             logger.debugf("Using DN [%s] for updating LDAP password of user", user.getDn());
         }
@@ -372,10 +377,69 @@ public class LDAPIdentityStore implements IdentityStore {
             if (config.useExtendedPasswordModifyOp()) {
                 operationManager.passwordModifyExtended(user.getDn().getLdapName(), password, passwordUpdateDecorator);
             } else {
-                ModificationItem[] mods = new ModificationItem[1];
-                BasicAttribute mod0 = new BasicAttribute(LDAPConstants.USER_PASSWORD_ATTRIBUTE, password);
-                mods[0] = new ModificationItem(DirContext.REPLACE_ATTRIBUTE, mod0);
-                operationManager.modifyAttributes(user.getDn().getLdapName(), mods, passwordUpdateDecorator);
+                List<ModificationItem> mods = new ArrayList<>();
+                BasicAttribute mod = new BasicAttribute(LDAPConstants.USER_PASSWORD_ATTRIBUTE, password);
+                mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, mod));
+
+                List<String> objectClasses = user.getObjectClasses();
+                if (objectClasses.contains(LDAPConstants.SHADOW_ACCOUNT)) {
+                    String shadowMax = user.getAttributeAsString(LDAPConstants.SHADOW_MAX);
+                    if (isTemporary) {
+                        mod = new BasicAttribute(LDAPConstants.SHADOW_MAX, "0");
+                        if (shadowMax != null) {
+                            mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, mod));
+                        } else {
+                            mods.add(new ModificationItem(DirContext.ADD_ATTRIBUTE, mod));
+                        }
+                    } else if (shadowMax != null) {
+                        mod = new BasicAttribute(LDAPConstants.SHADOW_MAX, shadowMax);
+                        mods.add(new ModificationItem(DirContext.REMOVE_ATTRIBUTE, mod));
+                    }
+                }
+
+                if (objectClasses.contains(LDAPConstants.SAMBA_SAM_ACCOUNT)) {
+                    mod = new BasicAttribute(LDAPConstants.SAMBA_NT_PASSWORD, CredentialUtils.ntlmHash(password));
+                    mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, mod));
+
+                    String flags = user.getAttributeAsString(LDAPConstants.SAMBA_ACCT_FLAGS);
+                    String newFlags;
+                    if (isTemporary) {
+                        newFlags = LDAPUtil.removeSambaAcctFlag(flags, LDAPConstants.SAMAB_ACCT_PWD_NOT_EXPIRE);
+                    } else {
+                        newFlags = LDAPUtil.addSambaAcctFlag(flags, LDAPConstants.SAMAB_ACCT_PWD_NOT_EXPIRE);
+                    }
+                    mod = new BasicAttribute(LDAPConstants.SAMBA_ACCT_FLAGS, newFlags);
+                    mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, mod));
+
+                    String pwdLastSet = user.getAttributeAsString(LDAPConstants.SAMBA_PWD_LAST_SET);
+                    if (isTemporary) {
+                        mod = new BasicAttribute(LDAPConstants.SAMBA_PWD_LAST_SET, "0");
+                        if (pwdLastSet != null) {
+                            mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, mod));
+                        } else {
+                            mods.add(new ModificationItem(DirContext.ADD_ATTRIBUTE, mod));
+                        }
+                    } else if (pwdLastSet != null) {
+                        pwdLastSet = Long.toString(System.currentTimeMillis() / 1000L);
+                        mod = new BasicAttribute(LDAPConstants.SAMBA_PWD_LAST_SET, pwdLastSet);
+                        mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, mod));
+                    }
+
+                    String pwdMustChange = user.getAttributeAsString(LDAPConstants.SAMBA_PWD_MUST_CHANGE);
+                    if (isTemporary) {
+                        mod = new BasicAttribute(LDAPConstants.SAMBA_PWD_MUST_CHANGE, "0");
+                        if (pwdMustChange != null) {
+                            mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, mod));
+                        } else {
+                            mods.add(new ModificationItem(DirContext.ADD_ATTRIBUTE, mod));
+                        }
+                    } else if (pwdMustChange != null) {
+                        mod = new BasicAttribute(LDAPConstants.SAMBA_PWD_MUST_CHANGE, pwdMustChange);
+                        mods.add(new ModificationItem(DirContext.REMOVE_ATTRIBUTE, mod));
+                    }
+                }
+
+                operationManager.modifyAttributes(user.getDn().getLdapName(), mods.toArray(new ModificationItem[mods.size()]), passwordUpdateDecorator);
             }
         } catch (ModelException me) {
             throw me;

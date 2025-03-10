@@ -21,9 +21,14 @@ import java.io.ByteArrayOutputStream;
 import org.keycloak.models.LDAPConstants;
 import org.keycloak.models.ModelException;
 import org.keycloak.storage.ldap.LDAPConfig;
+import org.keycloak.storage.ldap.idm.model.LDAPObject;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.TimeZone;
 
 /**
@@ -32,6 +37,9 @@ import java.util.TimeZone;
  * @author Pedro Igor
  */
 public class LDAPUtil {
+
+    private static final int USER_RID = 1000;
+    private static final int GROUP_RID = 1001;
 
     /**
      * <p>Formats the given date.</p>
@@ -294,5 +302,57 @@ public class LDAPUtil {
         }
 
         return defaultUseTruststore;
+    }
+
+    public static String sambaAcctFlags(String... flags) {
+        return String.format("[%s]", String.join("", flags));
+    }
+
+    public static String[] parseSambaAcctFlags(String string) {
+        if (string == null) {
+            return new String[0];
+        }
+
+        return string.trim().replaceFirst("^\\[", "").replaceFirst("\\]$", "").trim().split("(?!^)");
+    }
+
+    public static String addSambaAcctFlag(String string, String flag) {
+        List<String> flags = new ArrayList<>(Arrays.asList(parseSambaAcctFlags(string)));
+        if (flags.contains(flag)) {
+            return string;
+        }
+
+        flags.add(flag);
+        return sambaAcctFlags(flags.toArray(new String[flags.size()]));
+    }
+
+    public static String removeSambaAcctFlag(String string, String flag) {
+        List<String> flags = new ArrayList<>(Arrays.asList(parseSambaAcctFlags(string)));
+        if (!flags.contains(flag)) {
+            return string;
+        }
+
+        flags.removeAll(Collections.singleton(flag));
+        return sambaAcctFlags(flags.toArray(new String[flags.size()]));
+    }
+
+    private static String sambaSID(String domainSID, int id, int rid) {
+        return String.format("%s-%d", domainSID, id * 2 + rid);
+    }
+
+    public static String sambaUserSID(String domainSID, int uid) {
+        return sambaSID(domainSID, uid, USER_RID);
+    }
+
+    public static String sambaGroupSID(String domainSID, int gid) {
+        return sambaSID(domainSID, gid, GROUP_RID);
+    }
+
+    public static boolean setSingleAttributeIfNotExist(LDAPObject obj, String name, String value) {
+        if (obj.getAttributeAsString(name) == null) {
+            obj.setSingleAttribute(name, value);
+            return true;
+        }
+        return false;
     }
 }
