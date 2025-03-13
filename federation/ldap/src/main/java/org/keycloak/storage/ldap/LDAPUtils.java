@@ -62,8 +62,7 @@ import org.keycloak.storage.ldap.mappers.membership.MembershipType;
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
  */
 public class LDAPUtils {
-
-    private static final Logger log = Logger.getLogger(LDAPUtils.class);
+    private static final Logger logger = Logger.getLogger(LDAPUtils.class);
 
     /**
      * Method to create a user in the LDAP. The user will be created when all

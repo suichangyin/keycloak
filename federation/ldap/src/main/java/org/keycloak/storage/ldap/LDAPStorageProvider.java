@@ -1007,9 +1007,13 @@ public class LDAPStorageProvider implements UserStorageProvider,
         }
     }
 
-
     @Override
     public boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input) {
+        return updateCredential(realm, user, input, false, false);
+    }
+
+    @Override
+    public boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input, boolean isTemporary, boolean ignorePasswordPolicy) {
         if (!PasswordCredentialModel.TYPE.equals(input.getType()) || ! (input instanceof UserCredentialModel)) return false;
         if (editMode == UserStorageProvider.EditMode.READ_ONLY) {
             throw new ReadOnlyException("Federated storage is not writable");
@@ -1022,7 +1026,7 @@ public class LDAPStorageProvider implements UserStorageProvider,
                 logger.warnf("User '%s' can't be updated in LDAP as it doesn't exist there", user.getUsername());
                 return false;
             }
-            if (ldapIdentityStore.getConfig().isValidatePasswordPolicy()) {
+            if (!ignorePasswordPolicy && ldapIdentityStore.getConfig().isValidatePasswordPolicy()) {
                 PolicyError error = session.getProvider(PasswordPolicyManagerProvider.class).validate(realm, user, password);
                 if (error != null) throw new ModelException(error.getMessage(), error.getParameters());
             }
@@ -1032,7 +1036,7 @@ public class LDAPStorageProvider implements UserStorageProvider,
                     operationDecorator = updater.beforePasswordUpdate(user, ldapUser, (UserCredentialModel)input);
                 }
 
-                ldapIdentityStore.updatePassword(ldapUser, password, operationDecorator);
+                ldapIdentityStore.updatePassword(ldapUser, password, operationDecorator, isTemporary);
 
                 if (updater != null) updater.passwordUpdated(user, ldapUser, (UserCredentialModel)input);
                 return true;

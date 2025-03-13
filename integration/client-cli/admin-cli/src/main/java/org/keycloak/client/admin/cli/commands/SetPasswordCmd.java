@@ -50,6 +50,9 @@ public class SetPasswordCmd extends AbstractAuthOptionsCmd {
     @Option(names = {"-t", "--temporary"}, description = "is password temporary")
     boolean temporary;
 
+    @Option(names = {"-i", "--ignorePasswordPolicy"}, description = "Ignore password policy")
+    boolean ignorePasswordPolicy;
+
     @Override
     protected void process() {
         if (userid == null && username == null) {
@@ -88,7 +91,7 @@ public class SetPasswordCmd extends AbstractAuthOptionsCmd {
             userid = getIdFromUsername(adminRoot, realm, auth, username);
         }
 
-        resetUserPassword(adminRoot, realm, auth, userid, pass, temporary);
+        resetUserPassword(adminRoot, realm, auth, userid, pass, temporary, ignorePasswordPolicy);
     }
 
     @Override

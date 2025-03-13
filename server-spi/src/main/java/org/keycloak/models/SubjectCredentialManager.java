@@ -50,6 +50,7 @@ public interface SubjectCredentialManager {
      * @return <code>true</code> if credentials have been updated successfully
      */
     boolean updateCredential(CredentialInput input);
+    boolean updateCredential(CredentialInput input, boolean isTemporary, boolean ignorePasswordPolicy);
 
     /**
      * Updates a credential of the entity with an updated {@link CredentialModel}.

@@ -42,6 +42,11 @@ class EmptyCredentialManager implements SubjectCredentialManager {
     }
 
     @Override
+    public boolean updateCredential(CredentialInput input, boolean isTemporary, boolean ignorePasswordPolicy) {
+        return false;
+    }
+
+    @Override
     public void updateStoredCredential(CredentialModel cred) {
         // no-op
     }

@@ -211,6 +211,11 @@ public class SSSDFederationProvider implements UserStorageProvider,
     }
 
     @Override
+    public boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input, boolean isTemporary, boolean ignorePasswordPolicy) {
+        return updateCredential(realm, user, input);
+    }
+
+    @Override
     public void disableCredentialType(RealmModel realm, UserModel user, String credentialType) {
     }
 

@@ -82,6 +82,11 @@ public class UserCredentialManager extends AbstractStorageManager<UserStoragePro
 
     @Override
     public boolean updateCredential(CredentialInput input) {
+        return updateCredential(input, false, false);
+    }
+
+    @Override
+    public boolean updateCredential(CredentialInput input, boolean isTemporary, boolean ignorePasswordPolicy) {
         if (!StorageId.isLocalStorage(user.getId())) throwExceptionIfInvalidUser(user);
         String providerId = user.getFederationLink();
 
@@ -91,13 +96,13 @@ public class UserCredentialManager extends AbstractStorageManager<UserStoragePro
 
             CredentialInputUpdater updater = getStorageProviderInstance(model, CredentialInputUpdater.class);
             if (updater != null && updater.supportsCredentialType(input.getType())) {
-                if (updater.updateCredential(realm, user, input)) return true;
+                if (updater.updateCredential(realm, user, input, isTemporary, ignorePasswordPolicy)) return true;
             }
         }
 
         return getCredentialProviders(session, CredentialInputUpdater.class)
                 .filter(updater -> updater.supportsCredentialType(input.getType()))
-                .anyMatch(updater -> updater.updateCredential(realm, user, input));
+                .anyMatch(updater -> updater.updateCredential(realm, user, input, isTemporary, ignorePasswordPolicy));
     }
 
     @Override

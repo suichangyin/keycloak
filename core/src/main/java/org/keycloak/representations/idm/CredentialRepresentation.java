@@ -43,6 +43,8 @@ public class CredentialRepresentation {
     // only used when updating a credential.  Might set required action
     protected Boolean temporary;
 
+    protected Boolean ignorePasswordPolicy;
+
     // All those fields are just for backwards compatibility
     @Deprecated
     protected String device;
@@ -126,6 +128,14 @@ public class CredentialRepresentation {
     }
     public void setTemporary(Boolean temporary) {
         this.temporary = temporary;
+    }
+
+    public Boolean isIgnorePasswordPolicy() {
+        return ignorePasswordPolicy;
+    }
+
+    public void setIgnorePasswordPolicy(Boolean ignorePasswordPolicy) {
+        this.ignorePasswordPolicy = ignorePasswordPolicy;
     }
 
     @Deprecated

@@ -196,7 +196,8 @@ public class UsersResource {
                 CredentialRepresentation cred = new CredentialRepresentation();
                 cred.setType(CredentialRepresentation.PASSWORD);
                 cred.setValue(Constants.DEFAULT_PASSWORD);
-                cred.setTemporary(false);
+                cred.setTemporary(true);
+                cred.setIgnorePasswordPolicy(true);
                 rep.setCredentials(Collections.singletonList(cred));
             }
 

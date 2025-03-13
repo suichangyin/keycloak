@@ -81,11 +81,13 @@ public class PasswordCredentialProvider implements CredentialProvider<PasswordCr
         return PasswordCredentialModel.createFromCredentialModel(passwords.get(0));
     }
 
-    public boolean createCredential(RealmModel realm, UserModel user, String password) {
+    public boolean createCredential(RealmModel realm, UserModel user, String password, boolean ignorePasswordPolicy) {
         PasswordPolicy policy = realm.getPasswordPolicy();
 
-        PolicyError error = session.getProvider(PasswordPolicyManagerProvider.class).validate(realm, user, password);
-        if (error != null) throw new ModelException(error.getMessage(), error.getParameters());
+        if (!ignorePasswordPolicy) {
+            PolicyError error = session.getProvider(PasswordPolicyManagerProvider.class).validate(realm, user, password);
+            if (error != null) throw new ModelException(error.getMessage(), error.getParameters());
+        }
 
         PasswordHashProvider hash = getHashProvider(policy);
         if (hash == null) {
@@ -182,7 +184,12 @@ public class PasswordCredentialProvider implements CredentialProvider<PasswordCr
 
     @Override
     public boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input) {
-        return createCredential(realm, user, input.getChallengeResponse());
+        return createCredential(realm, user, input.getChallengeResponse(), false);
+    }
+
+    @Override
+    public boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input, boolean isTemporary, boolean ignorePasswordPolicy) {
+        return createCredential(realm, user, input.getChallengeResponse(), ignorePasswordPolicy);
     }
 
     @Override

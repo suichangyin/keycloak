@@ -702,7 +702,8 @@ public class UserResource {
         }
 
         try {
-            user.credentialManager().updateCredential(UserCredentialModel.password(cred.getValue(), false));
+            boolean isTemporary = cred.isTemporary() != null && cred.isTemporary();
+            user.credentialManager().updateCredential(UserCredentialModel.password(cred.getValue(), false), isTemporary, false);
         } catch (IllegalStateException ise) {
             throw new BadRequestException("Resetting to N old passwords is not allowed.");
         } catch (ReadOnlyException mre) {

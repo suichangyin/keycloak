@@ -192,6 +192,11 @@ public class BackwardsCompatibilityUserStorage implements UserLookupProvider, Us
         }
     }
 
+    @Override
+    public boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input, boolean isTemporary, boolean ignorePasswordPolicy) {
+        return true;
+    }
+
     protected PasswordHashProvider getHashProvider(PasswordPolicy policy) {
         if (policy != null && policy.getHashAlgorithm() != null) {
             return session.getProvider(PasswordHashProvider.class, policy.getHashAlgorithm());

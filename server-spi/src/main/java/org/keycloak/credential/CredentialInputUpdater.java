@@ -28,6 +28,7 @@ import java.util.stream.Stream;
 public interface CredentialInputUpdater {
     boolean supportsCredentialType(String credentialType);
     boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input);
+    boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input, boolean isTemporary, boolean ignorePasswordPolicy);
     void disableCredentialType(RealmModel realm, UserModel user, String credentialType);
 
     /**

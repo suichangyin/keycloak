@@ -115,6 +115,11 @@ public class PassThroughFederatedUserStorageProvider implements
     }
 
     @Override
+    public boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input, boolean isTemporary, boolean ignorePasswordPolicy) {
+        return true;
+    }
+
+    @Override
     public void disableCredentialType(RealmModel realm, UserModel user, String credentialType) {
         UserStorageUtil.userFederatedStorage(session).getStoredCredentialsByTypeStream(realm, user.getId(), "CLEAR_TEXT_PASSWORD")
                 .collect(Collectors.toList())

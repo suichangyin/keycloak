@@ -786,9 +786,11 @@ public class RepresentationToModel {
                 }
                 if (cred.getValue() != null && !cred.getValue().isEmpty()) {
                     RealmModel origRealm = session.getContext().getRealm();
+                    boolean isTemporary = cred.isTemporary() != null && cred.isTemporary();
+                    boolean ignorePasswordPolicy = cred.isIgnorePasswordPolicy() != null && cred.isIgnorePasswordPolicy();
                     try {
                         session.getContext().setRealm(realm);
-                        user.credentialManager().updateCredential(UserCredentialModel.password(cred.getValue(), false));
+                        user.credentialManager().updateCredential(UserCredentialModel.password(cred.getValue(), false), isTemporary, ignorePasswordPolicy);
                     } catch (ModelException ex) {
                         PasswordPolicyNotMetException passwordPolicyNotMetException = new PasswordPolicyNotMetException(ex.getMessage(), user.getUsername(), ex);
                         passwordPolicyNotMetException.setParameters(ex.getParameters());

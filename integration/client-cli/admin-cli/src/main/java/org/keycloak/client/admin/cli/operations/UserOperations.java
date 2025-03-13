@@ -56,7 +56,7 @@ public class UserOperations {
         doDeleteJSON(resourceUrl, auth, roles);
     }
 
-    public static void resetUserPassword(String rootUrl, String realm, String auth, String userid, String password, boolean temporary) {
+    public static void resetUserPassword(String rootUrl, String realm, String auth, String userid, String password, boolean temporary, boolean ignorePasswordPolicy) {
 
         String resourceUrl = composeResourceUrl(rootUrl, realm, "users/" + userid + "/reset-password");
 
@@ -69,6 +69,7 @@ public class UserOperations {
         CredentialRepresentation credentials = new CredentialRepresentation();
         credentials.setType("password");
         credentials.setTemporary(temporary);
+        credentials.setIgnorePasswordPolicy(ignorePasswordPolicy);
         credentials.setValue(password);
 
         HeadersBodyStatus response;

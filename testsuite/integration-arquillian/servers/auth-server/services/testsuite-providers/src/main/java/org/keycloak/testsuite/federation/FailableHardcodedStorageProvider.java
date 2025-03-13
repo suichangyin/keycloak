@@ -90,6 +90,11 @@ public class FailableHardcodedStorageProvider implements UserStorageProvider, Us
     }
 
     @Override
+    public boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input, boolean isTemporary, boolean ignorePasswordPolicy) {
+        return false;
+    }
+
+    @Override
     public void disableCredentialType(RealmModel realm, UserModel user, String credentialType) {
         checkForceFail();
 
