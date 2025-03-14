@@ -389,7 +389,7 @@ public class UserStorageManager extends AbstractStorageManager<UserStorageProvid
         }
 
         return getEnabledStorageProviders(realm, UserRegistrationProvider.class)
-                .map(provider -> provider.addUser(realm, username))
+                .map(provider -> provider.addUser(realm, username, rep))
                 .filter(Objects::nonNull)
                 .findFirst()
                 .orElseGet(() -> localStorage().addUser(realm, username.toLowerCase(), rep));

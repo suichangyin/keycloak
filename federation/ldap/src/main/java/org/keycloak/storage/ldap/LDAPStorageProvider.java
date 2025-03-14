@@ -17,6 +17,7 @@
 
 package org.keycloak.storage.ldap;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -360,7 +362,8 @@ public class LDAPStorageProvider implements UserStorageProvider,
         if (!synchronizeRegistrations()) {
             return null;
         }
-        final UserModel user;
+
+        UserModel user;
         if (model.isImportEnabled()) {
             user = UserStoragePrivateUtil.userLocalStorage(session).addUser(realm, username, rep);
             user.setFederationLink(model.getId());
@@ -373,9 +376,16 @@ public class LDAPStorageProvider implements UserStorageProvider,
 
         LDAPObject ldapUser = LDAPUtils.addUserToLDAP(this, realm, user, ldapObject -> {
             LDAPUtils.checkUuid(ldapObject, ldapIdentityStore.getConfig());
-            user.setSingleAttribute(LDAPConstants.LDAP_ID, ldapObject.getUuid());
-            user.setSingleAttribute(LDAPConstants.LDAP_ENTRY_DN, ldapObject.getDn().toString());
         }, rep.getUid());
+
+        if (model.isImportEnabled()) {
+            UserStoragePrivateUtil.userLocalStorage(session).removeUser(realm, user);
+            UserStoragePrivateUtil.userLocalStorage(session).addUser(realm, caculateUserUuid(realm, ldapUser), username);
+            setUserProperties(realm, user, rep);
+        }
+
+        user.setSingleAttribute(LDAPConstants.LDAP_ID, ldapUser.getUuid());
+        user.setSingleAttribute(LDAPConstants.LDAP_ENTRY_DN, ldapUser.getDn().toString());
 
         // Add the user to the default groups and add default required actions
         UserModel proxy = proxy(realm, user, ldapUser, true);
@@ -873,6 +883,13 @@ public class LDAPStorageProvider implements UserStorageProvider,
         NOT_FORCED_RETURN_EXISTING  // the import is not forced and existing user is returned
     };
 
+    protected String caculateUserUuid(RealmModel realm, LDAPObject ldapObject) {
+        String uuidStr = realm.getId() + ldapObject.getUuid();
+        UUID uuid = UUID.nameUUIDFromBytes(uuidStr.getBytes(StandardCharsets.UTF_8));
+
+        return uuid.toString();
+    }
+
     protected UserModel importUserFromLDAP(KeycloakSession session, RealmModel realm, LDAPObject ldapUser, ImportType importType) {
         String ldapUsername = LDAPUtils.getUsername(ldapUser, ldapIdentityStore.getConfig());
         LDAPUtils.checkUuid(ldapUser, ldapIdentityStore.getConfig());
@@ -902,7 +919,7 @@ public class LDAPStorageProvider implements UserStorageProvider,
                         UserStorageUtil.userCache(session).evict(realm, existingLocalUser);
                     }
                 } else {
-                    imported = userProvider.addUser(realm, ldapUsername);
+                    imported = userProvider.addUser(realm, caculateUserUuid(realm, ldapUser), ldapUsername);
                 }
             } else {
                 InMemoryUserAdapter adapter = new InMemoryUserAdapter(session, realm, new StorageId(model.getId(), ldapUsername).getId());
