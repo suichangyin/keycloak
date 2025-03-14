@@ -350,6 +350,12 @@ public class LDAPStorageProvider implements UserStorageProvider,
     }
 
     @Override
+    public UserModel addUser(RealmModel realm, String id, String username) {
+        // LDAP does not support specifying id
+        return addUser(realm, username);
+    }
+
+    @Override
     public UserModel addUser(RealmModel realm, String username, UserRepresentation rep) {
         if (!synchronizeRegistrations()) {
             return null;

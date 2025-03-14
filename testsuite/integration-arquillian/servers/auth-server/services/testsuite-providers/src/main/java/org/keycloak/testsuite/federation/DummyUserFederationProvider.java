@@ -65,10 +65,13 @@ public class DummyUserFederationProvider implements UserStorageProvider,
         this.component = component;
     }
 
-
-
     @Override
     public UserModel addUser(RealmModel realm, String username) {
+        return addUser(realm, null, username);
+    }
+
+    @Override
+    public UserModel addUser(RealmModel realm, String id, String username) {
         UserModel local = UserStoragePrivateUtil.userLocalStorage(session).addUser(realm, username);
         local.setFederationLink(component.getId());
 

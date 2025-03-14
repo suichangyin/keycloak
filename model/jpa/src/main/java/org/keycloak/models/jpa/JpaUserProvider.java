@@ -145,6 +145,11 @@ public class JpaUserProvider implements UserProvider, UserCredentialStore {
     }
 
     @Override
+    public UserModel addUser(RealmModel realm, String id, String username) {
+        return addUser(realm, id, username.toLowerCase(), true, true);
+    }
+
+    @Override
     public UserModel addUser(RealmModel realm, String username, UserRepresentation rep) {
         return addUser(realm, rep.getId() == null ? KeycloakModelUtils.generateId() : rep.getId(), username.toLowerCase(), true, true);
     }

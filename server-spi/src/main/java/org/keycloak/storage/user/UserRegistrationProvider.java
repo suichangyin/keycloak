@@ -45,6 +45,8 @@ public interface UserRegistrationProvider {
      */
     UserModel addUser(RealmModel realm, String username);
 
+    UserModel addUser(RealmModel realm, String id, String username);
+
     UserModel addUser(RealmModel realm, String username, UserRepresentation rep);
 
     /**

@@ -200,6 +200,11 @@ public class IpatuuraUserStorageProvider implements UserStorageProvider, UserLoo
 
     @Override
     public UserModel addUser(RealmModel realm, String username) {
+        return addUser(realm, null, username);
+    }
+
+    @Override
+    public UserModel addUser(RealmModel realm, String id, String username) {
         Ipatuura ipatuura = this.ipatuura;
 
         SimpleHttp.Response resp = ipatuura.createUser(username);

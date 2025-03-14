@@ -153,6 +153,46 @@ public class UserMapStorage implements UserLookupProvider, UserStorageProvider, 
         return user;
     }
 
+    private UserModel createUser(RealmModel realm, String id, String username) {
+        UserModel user;
+        if (isImportEnabled()) {
+            user = UserStoragePrivateUtil.userLocalStorage(session).addUser(realm, id, username);
+            user.setEnabled(true);
+            user.setFederationLink(model.getId());
+        } else {
+            user = new AbstractUserAdapterFederatedStorage.Streams(session, realm, model) {
+                @Override
+                public String getUsername() {
+                    return username.toLowerCase();
+                }
+
+                @Override
+                public void setUsername(String innerUsername) {
+                    if (! Objects.equals(innerUsername, username.toLowerCase())) {
+                        throw new RuntimeException("Unsupported");
+                    }
+                }
+
+                @Override
+                public void leaveGroup(GroupModel group) {
+                    UserMapStorage.this.leaveGroup(realm, getUsername(), group);
+                }
+
+                @Override
+                public void joinGroup(GroupModel group) {
+                    UserMapStorage.this.joinGroup(realm, getUsername(), group);
+                }
+
+                @Override
+                public String getFederationLink() {
+                    return model.getId();
+                }
+            };
+        }
+
+        return user;
+    }
+
     @Override
     public boolean supportsCredentialType(String credentialType) {
         return PasswordCredentialModel.TYPE.equals(credentialType);
@@ -233,6 +273,16 @@ public class UserMapStorage implements UserLookupProvider, UserStorageProvider, 
 
         userPasswords.put(translateUserName(username), "");
         return createUser(realm, username);
+    }
+
+    @Override
+    public UserModel addUser(RealmModel realm, String id, String username) {
+        if (editMode == EditMode.READ_ONLY) {
+            throw new ReadOnlyException("Federated storage is not writable");
+        }
+
+        userPasswords.put(translateUserName(username), "");
+        return createUser(realm, id, username);
     }
 
     @Override

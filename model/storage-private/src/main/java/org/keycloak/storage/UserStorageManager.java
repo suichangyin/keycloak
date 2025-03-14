@@ -368,6 +368,20 @@ public class UserStorageManager extends AbstractStorageManager<UserStorageProvid
     }
 
     @Override
+    public UserModel addUser(RealmModel realm, String id, String username) {
+        if (username.startsWith(ServiceAccountConstants.SERVICE_ACCOUNT_USER_PREFIX)) {
+            // Don't use federation for service account user
+            return localStorage().addUser(realm, id, username);
+        }
+
+        return getEnabledStorageProviders(realm, UserRegistrationProvider.class)
+                .map(provider -> provider.addUser(realm, id, username))
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElseGet(() -> localStorage().addUser(realm, id, username.toLowerCase()));
+    }
+
+    @Override
     public UserModel addUser(RealmModel realm, String username, UserRepresentation rep) {
         if (username.startsWith(ServiceAccountConstants.SERVICE_ACCOUNT_USER_PREFIX)) {
             // Don't use federation for service account user

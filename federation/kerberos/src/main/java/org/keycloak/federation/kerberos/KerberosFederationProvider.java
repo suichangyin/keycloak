@@ -332,6 +332,12 @@ public class KerberosFederationProvider implements UserStorageProvider,
     }
 
     @Override
+    public UserModel addUser(RealmModel realm, String id, String username) {
+        // no support for creating users
+        return null;
+    }
+
+    @Override
     public UserModel addUser(RealmModel realm, String username, UserRepresentation rep) {
         return addUser(realm, username);
     }

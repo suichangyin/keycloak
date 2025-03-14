@@ -862,6 +862,15 @@ public class UserCacheSession implements UserCache, OnCreateComponent, OnUpdateC
     }
 
     @Override
+    public UserModel addUser(RealmModel realm, String id, String username) {
+        UserModel user = getDelegate().addUser(realm, id, username);
+        // just in case the transaction is rolled back you need to invalidate the user and all cache queries for that user
+        fullyInvalidateUser(realm, user);
+        managedUsers.put(user.getId(), user);
+        return user;
+    }
+
+    @Override
     public UserModel addUser(RealmModel realm, String username, UserRepresentation rep) {
         UserModel user = getDelegate().addUser(realm, username, rep);
         // just in case the transaction is rolled back you need to invalidate the user and all cache queries for that user
