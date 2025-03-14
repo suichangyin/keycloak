@@ -380,7 +380,7 @@ public class LDAPStorageProvider implements UserStorageProvider,
 
         if (model.isImportEnabled()) {
             UserStoragePrivateUtil.userLocalStorage(session).removeUser(realm, user);
-            UserStoragePrivateUtil.userLocalStorage(session).addUser(realm, caculateUserUuid(realm, ldapUser), username);
+            user = UserStoragePrivateUtil.userLocalStorage(session).addUser(realm, caculateUserUuid(realm, ldapUser), username);
             setUserProperties(realm, user, rep);
         }
 

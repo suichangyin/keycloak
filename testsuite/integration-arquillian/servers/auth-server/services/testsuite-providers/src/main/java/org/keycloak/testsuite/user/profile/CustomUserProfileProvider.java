@@ -2,6 +2,7 @@ package org.keycloak.testsuite.user.profile;
 
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.userprofile.DeclarativeUserProfileProvider;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
@@ -27,6 +28,11 @@ public class CustomUserProfileProvider extends DeclarativeUserProfileProvider {
     @Override
     public UserProfile create(UserProfileContext context, Map<String, ?> attributes) {
         return this.create(context, attributes, (UserModel) null);
+    }
+
+    @Override
+    public UserProfile create(UserProfileContext context, Map<String, ?> attributes, UserModel user, UserRepresentation userRepresentation) {
+        return this.create(context, attributes, user);
     }
 
 }

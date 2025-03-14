@@ -21,6 +21,7 @@ import java.util.Map;
 
 import org.keycloak.models.UserModel;
 import org.keycloak.provider.Provider;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.representations.userprofile.config.UPConfig;
 
 /**
@@ -68,6 +69,21 @@ public interface UserProfileProvider extends Provider {
      * @return the user profile instance
      */
     UserProfile create(UserProfileContext context, Map<String, ?> attributes, UserModel user);
+
+    /**
+     * <p>Creates a new {@link UserProfile} instance for a given {@code context} and {@code attributes} for update purposes.
+     *
+     * <p>Instances created from this method are going to run validations and updates based on the given {@code user}. This
+     * might be useful when updating an existing user.
+     *
+     * @param context the context
+     * @param attributes the attributes to associate with the instance returned from this method
+     * @param user the user to eventually update with the given {@code attributes}
+     * @param userRepresentation the userRepresentation to specify the user id and so on
+     *
+     * @return the user profile instance
+     */
+    UserProfile create(UserProfileContext context, Map<String, ?> attributes, UserModel user, UserRepresentation userRepresentation);
 
     /**
      * Get current UserProfile configuration.

@@ -40,6 +40,7 @@ import org.keycloak.models.ClientScopeModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.userprofile.config.DeclarativeUserProfileModel;
 import org.keycloak.representations.userprofile.config.UPAttribute;
@@ -114,20 +115,25 @@ public class DeclarativeUserProfileProvider implements UserProfileProvider {
 
     @Override
     public UserProfile create(UserProfileContext context, UserModel user) {
-        return createUserProfile(context, user.getAttributes(), user);
+        return createUserProfile(context, null, user.getAttributes(), user);
     }
 
     @Override
     public UserProfile create(UserProfileContext context, Map<String, ?> attributes, UserModel user) {
-        return createUserProfile(context, attributes, user);
+        return createUserProfile(context, null, attributes, user);
     }
 
     @Override
     public UserProfile create(UserProfileContext context, Map<String, ?> attributes) {
-        return createUserProfile(context, attributes, null);
+        return createUserProfile(context, null, attributes, null);
     }
 
-    private UserProfile createUserProfile(UserProfileContext context, Map<String, ?> attributes, UserModel user) {
+    @Override
+    public UserProfile create(UserProfileContext context, Map<String, ?> attributes, UserModel user, UserRepresentation userRepresentation) {
+        return createUserProfile(context, userRepresentation, attributes, user);
+    }
+
+    private UserProfile createUserProfile(UserProfileContext context, UserRepresentation userRepresentation, Map<String, ?> attributes, UserModel user) {
         UserProfileMetadata defaultMetadata = contextualMetadataRegistry.get(context);
 
         if (defaultMetadata == null) {
@@ -137,7 +143,7 @@ public class DeclarativeUserProfileProvider implements UserProfileProvider {
 
         UserProfileMetadata metadata = configureUserProfile(defaultMetadata, session);
         Attributes profileAttributes = createAttributes(context, attributes, user, metadata);
-        return new DefaultUserProfile(metadata, profileAttributes, createUserFactory(), user, session);
+        return new DefaultUserProfile(metadata, userRepresentation, profileAttributes, createUserFactory(), user, session);
     }
 
     /**
@@ -145,13 +151,16 @@ public class DeclarativeUserProfileProvider implements UserProfileProvider {
      *
      * @return a function for creating new users.
      */
-    private Function<Attributes, UserModel> createUserFactory() {
-        return new Function<Attributes, UserModel>() {
+    private Function<DefaultUserProfile.UserRepresentationAndAttributes, UserModel> createUserFactory() {
+        return new Function<>() {
             private UserModel user;
 
             @Override
-            public UserModel apply(Attributes attributes) {
+            public UserModel apply(DefaultUserProfile.UserRepresentationAndAttributes userRepresentationAndAttributes) {
                 if (user == null) {
+                    UserRepresentation userRepresentation = userRepresentationAndAttributes.getUserRepresentation();
+                    Attributes attributes = userRepresentationAndAttributes.getAttributes();
+
                     String userName = attributes.getFirst(UserModel.USERNAME);
 
                     // fallback to email in case email is allowed
@@ -159,7 +168,11 @@ public class DeclarativeUserProfileProvider implements UserProfileProvider {
                         userName = attributes.getFirst(UserModel.EMAIL);
                     }
 
-                    user = session.users().addUser(session.getContext().getRealm(), userName);
+                    if (userRepresentation != null) {
+                        user = session.users().addUser(session.getContext().getRealm(), userName, userRepresentation);
+                    } else {
+                        user = session.users().addUser(session.getContext().getRealm(), userName);
+                    }
                 }
 
                 return user;

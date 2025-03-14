@@ -39,6 +39,7 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.ModelToRepresentation;
 import org.keycloak.representations.idm.AbstractUserRepresentation;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.storage.ReadOnlyException;
 import org.keycloak.utils.StringUtil;
 
@@ -53,17 +54,20 @@ import org.keycloak.utils.StringUtil;
 public final class DefaultUserProfile implements UserProfile {
 
     private final UserProfileMetadata metadata;
-    private final Function<Attributes, UserModel> userSupplier;
+    private final Function<UserRepresentationAndAttributes, UserModel> userSupplier;
     private final Attributes attributes;
+    private final UserRepresentationAndAttributes userRepresentationAndAttributes;
     private final KeycloakSession session;
     private boolean validated;
     private UserModel user;
 
-    public DefaultUserProfile(UserProfileMetadata metadata, Attributes attributes, Function<Attributes, UserModel> userCreator, UserModel user,
+    public DefaultUserProfile(UserProfileMetadata metadata, UserRepresentation userRepresentation, Attributes attributes,
+                              Function<UserRepresentationAndAttributes, UserModel> userCreator, UserModel user,
             KeycloakSession session) {
         this.metadata = metadata;
         this.userSupplier = userCreator;
         this.attributes = attributes;
+        this.userRepresentationAndAttributes = new UserRepresentationAndAttributes(userRepresentation, attributes);
         this.user = user;
         this.session = session;
     }
@@ -93,7 +97,7 @@ public final class DefaultUserProfile implements UserProfile {
             validate();
         }
 
-        user = userSupplier.apply(this.attributes);
+        user = userSupplier.apply(this.userRepresentationAndAttributes);
 
         return updateInternal(user, false);
     }
@@ -272,5 +276,23 @@ public final class DefaultUserProfile implements UserProfile {
         rep.setLastName(null);
 
         return rep;
+    }
+
+    class UserRepresentationAndAttributes {
+        private UserRepresentation userRepresentation;
+        private Attributes attributes;
+
+        public UserRepresentationAndAttributes(UserRepresentation userRepresentation, Attributes attributes) {
+            this.userRepresentation = userRepresentation;
+            this.attributes = attributes;
+        }
+
+        public UserRepresentation getUserRepresentation() {
+            return userRepresentation;
+        }
+
+        public Attributes getAttributes() {
+            return attributes;
+        }
     }
 }
