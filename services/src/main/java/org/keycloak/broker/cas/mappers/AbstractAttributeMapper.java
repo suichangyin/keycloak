@@ -20,18 +20,18 @@ public abstract class AbstractAttributeMapper extends AbstractIdentityProviderMa
 
     public static List<String> getAttributeValue(
             final IdentityProviderMapperModel mapperModel, final BrokeredIdentityContext user) {
+        String attributeName = mapperModel.getConfig().get(ATTRIBUTE);
         @SuppressWarnings("unchecked")
         Map<String, List<String>> userAttributes =
                 (Map<String, List<String>>) user.getContextData().get(CasIdentityProvider.USER_ATTRIBUTES);
         logger.debug("getAttributeValue attributes: " + userAttributes);
-        return userAttributes.getOrDefault(
-                mapperModel.getConfig().get(ATTRIBUTE), Collections.emptyList());
+        return userAttributes.get(attributeName);
     }
 
     protected boolean hasAttributeValue(
             final IdentityProviderMapperModel mapperModel, final BrokeredIdentityContext context) {
-        return CollectionUtil.collectionEquals(
-                Collections.singletonList(mapperModel.getConfig().get(ATTRIBUTE_VALUE)),
-                getAttributeValue(mapperModel, context));
+        List<String> value = getAttributeValue(mapperModel, context);
+        String desiredValue = mapperModel.getConfig().get(ATTRIBUTE_VALUE);
+        return CollectionUtil.collectionEquals(Collections.singletonList(desiredValue), value);
     }
 }
