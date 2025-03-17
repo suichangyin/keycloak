@@ -98,7 +98,7 @@ export default function AddIdentityProvider() {
           onSubmit={handleSubmit(onSubmit)}
         >
           <FormProvider {...form}>
-            <GeneralSettings id={providerId} />
+            <GeneralSettings id={providerId} hideClientIdSecret={providerId === "cas"}/>
             {providerInfo && (
               <DynamicComponents
                 stringify

@@ -9,11 +9,13 @@ import type { IdentityProviderParams } from "../routes/IdentityProvider";
 
 type GeneralSettingsProps = {
   id: string;
+  hideClientIdSecret?: boolean;
   create?: boolean;
 };
 
 export const GeneralSettings = ({
   create = true,
+  hideClientIdSecret = false,
   id,
 }: GeneralSettingsProps) => {
   const { t } = useTranslation();
@@ -36,7 +38,7 @@ export const GeneralSettings = ({
       />
 
       <TextControl name="displayName" label={t("displayName")} />
-      <ClientIdSecret create={create} />
+      {!hideClientIdSecret && <ClientIdSecret create={create} />}
       <DisplayOrder />
     </>
   );

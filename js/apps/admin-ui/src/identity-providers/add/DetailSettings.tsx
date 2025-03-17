@@ -409,7 +409,8 @@ export default function DetailSettings() {
 
   const isOIDC = provider.providerId!.includes("oidc");
   const isSAML = provider.providerId!.includes("saml");
-  const isSocial = !isOIDC && !isSAML;
+  const isCAS = provider.providerId!.includes("cas");
+  const isSocial = !isOIDC && !isSAML && !isCAS;
 
   const loader = async () => {
     const [loaderMappers, loaderMapperTypes] = await Promise.all([
@@ -446,6 +447,7 @@ export default function DetailSettings() {
           onSubmit={handleSubmit(save)}
         >
           {isSocial && <GeneralSettings create={false} id={providerId} />}
+          {isCAS && <GeneralSettings create={false} id={providerId}  hideClientIdSecret={true}/>}
           {isOIDC && <OIDCGeneralSettings />}
           {isSAML && <SamlGeneralSettings isAliasReadonly />}
           {providerInfo && (
