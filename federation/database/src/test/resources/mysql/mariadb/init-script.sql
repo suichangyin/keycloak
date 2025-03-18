@@ -1,0 +1,77 @@
+CREATE TABLE `db_user_users` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `username` varchar(40) NOT NULL,
+    `email` varchar(40) DEFAULT NULL,
+    `email_verified` varchar(1) DEFAULT 'n',
+    `first_name` varchar(40) DEFAULT NULL,
+    `last_name` varchar(40) DEFAULT NULL,
+    `enabled` tinyint(1) DEFAULT 1,
+    `temp_password` varchar(40) DEFAULT NULL,
+    `required_actions` varchar(80) DEFAULT NULL,
+    `updated` timestamp NULL DEFAULT current_timestamp(),
+    `custom_attr` varchar(40) DEFAULT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+
+INSERT INTO db_user_users (username, email, email_verified, first_name, last_name, temp_password, required_actions)
+VALUES ('bobby', 'bobby@barbarian.com', 'y', 'Bobby', 'Barbarian', 'ThunderClub', 'VERIFY_EMAIL, UPDATE_PROFILE,UPDATE_PASSWORD , TERMS_AND_CONDITIONS ');
+
+INSERT INTO db_user_users (username, email, email_verified, first_name, last_name, temp_password, required_actions)
+VALUES ('eric', 'eric@fighter.com', 'y', 'Eric', 'Fighter', 'GriffonShield', 'VERIFY_EMAIL');
+
+INSERT INTO db_user_users (username, email, email_verified, first_name, last_name, temp_password, required_actions)
+VALUES ('diana', 'diana@monk.com', 'y', 'Diana', 'Monk', 'JavelinStaff', 'UPDATE_PROFILE');
+
+INSERT INTO db_user_users (username, email, email_verified, first_name, last_name, temp_password, required_actions)
+VALUES ('hank', 'hank@ranger.com', 'y', 'Hank', 'Ranger', 'EnergyBow', 'UPDATE_PASSWORD');
+
+INSERT INTO db_user_users (username, email, email_verified, first_name, last_name, temp_password, required_actions)
+VALUES ('presto', 'presto@wizard.com', 'y', 'Presto', 'Wizard', 'HatofManySpells', 'VERIFY_PROFILE');
+
+INSERT INTO db_user_users (username, email, email_verified, first_name, last_name, temp_password)
+VALUES ('sheila', 'sheila@thief.com', 'y', 'Sheila', 'Rogue', 'CloakofInvisibility');
+
+INSERT INTO db_user_users (username, email, email_verified, first_name, last_name, enabled, custom_attr)
+VALUES ('uni', 'uni@unicorn.com', 'n', 'Uni', 'Unicorn', false, 'teleport');
+
+INSERT INTO db_user_users (username, email, email_verified, first_name, last_name, enabled)
+VALUES ('master', 'dungeon@master.com', 'y', 'Dungeon', 'Master', true);
+
+-- Invalid users
+
+INSERT INTO db_user_users (username, email, first_name, last_name)
+VALUES ('', 'invalid@error.com', 'Invalid', 'Erro');
+
+INSERT INTO db_user_users (username, email, first_name, last_name)
+VALUES ('invalid_email', 'invalid', 'Invalid', 'Erro');
+
+INSERT INTO db_user_users (username)
+VALUES ('blank_all');
+
+INSERT INTO db_user_users(username, email, first_name, last_name)
+VALUES ('invalid_first_name', 'invalid_first_name@error.com', '', 'Invalid first name');
+
+INSERT INTO db_user_users(username, email, first_name, last_name)
+VALUES ('invalid_last_name', 'invalid_last_name@error.com', 'Invalid', '');
+
+INSERT INTO db_user_users(username, email, first_name, last_name, required_actions)
+VALUES ('invalid_action', 'invalid@error.com', 'Invalid', 'Erro', 'INVALID_ACTION');
+
+-- Roles
+
+CREATE TABLE `db_user_roles` (
+    `username` varchar(40) NOT NULL,
+    `name` varchar(40) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+
+INSERT INTO db_user_roles (username, name)
+VALUES ('hank', 'leader');
+
+insert into db_user_roles (username, name)
+VALUES ('master', 'role1');
+insert into db_user_roles (username, name)
+VALUES ('master', 'role2');
+insert into db_user_roles (username, name)
+VALUES ('master', 'role3');

@@ -35,6 +35,7 @@
             <module name="org.keycloak.keycloak-model-infinispan"/>
             <module name="org.keycloak.keycloak-model-jpa"/>
             <module name="org.keycloak.keycloak-ldap-federation"/>
+            <module name="org.keycloak.keycloak-db-federation"/>
             <module name="org.infinispan"/>
             <module name="org.infinispan.commons"/>
             <module name="org.infinispan.client.hotrod"/>

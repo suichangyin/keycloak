@@ -33,6 +33,7 @@
     <description />
 
     <modules>
+        <module>database</module>
         <module>kerberos</module>
         <module>ldap</module>
         <module>sssd</module>
