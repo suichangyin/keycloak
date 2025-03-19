@@ -34,6 +34,7 @@
 
     <modules>
         <module>database</module>
+        <module>rest</module>
         <module>kerberos</module>
         <module>ldap</module>
         <module>sssd</module>
