@@ -1,11 +1,10 @@
 package org.keycloak.datasource;
 
-import java.util.List;
-
+import io.agroal.api.configuration.supplier.AgroalPropertiesReader;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.provider.ProviderConfigurationBuilder;
 
-import io.agroal.api.configuration.supplier.AgroalPropertiesReader;
+import java.util.List;
 
 public class DataSourceConfiguration {
 
@@ -14,6 +13,8 @@ public class DataSourceConfiguration {
     public static final String SYNC_SINCE_SQL = "syncSinceSql";
     public static final String SYNC_ONE_SQL = "syncOneSql";
     public static final String SYNC_ROLE_SQL = "syncRoleSql";
+    public static final String AUTO_LINK_USER_TO_IDENTITY_PROVIDER = "autoLinkUserToIdentityProvider";
+    public static final String IDENTITY_PROVIDER_ALIAS = "identityProviderAlias";
 
     public static List<ProviderConfigProperty> create() {
         return ProviderConfigurationBuilder.create()
@@ -99,6 +100,20 @@ public class DataSourceConfiguration {
                 .label(AgroalPropertiesReader.METRICS_ENABLED)
                 .type(ProviderConfigProperty.BOOLEAN_TYPE)
                 .defaultValue(Boolean.FALSE)
+                .add()
+                .property()
+                .name(AUTO_LINK_USER_TO_IDENTITY_PROVIDER)
+                .label("Auto Linked User to Identity Provider")
+                .helpText("Auto Linked User to Identity Provider")
+                .type(ProviderConfigProperty.BOOLEAN_TYPE)
+                .defaultValue("false")
+                .add()
+                .property()
+                .name(IDENTITY_PROVIDER_ALIAS)
+                .label("Identity Provider Alias")
+                .helpText("If automatic linked of users to identity provider is enabled, fill in the alias of the identity provider here.")
+                .type(ProviderConfigProperty.STRING_TYPE)
+                .defaultValue("cas")
                 .add()
                 .build();
     }

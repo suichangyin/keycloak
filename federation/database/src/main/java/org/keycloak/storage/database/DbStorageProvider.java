@@ -1,9 +1,12 @@
 package org.keycloak.storage.database;
 
+import org.apache.commons.lang3.StringUtils;
 import org.jboss.logging.Logger;
 import org.keycloak.component.ComponentModel;
+import org.keycloak.datasource.DataSourceConfiguration;
 import org.keycloak.exception.DbUserProviderException;
 import org.keycloak.models.Constants;
+import org.keycloak.models.FederatedIdentityModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.RoleModel;
@@ -11,6 +14,7 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.UserModel.RequiredAction;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.services.validation.Validation;
+import org.keycloak.storage.UserStoragePrivateUtil;
 import org.keycloak.storage.UserStorageProvider;
 import org.keycloak.storage.user.ImportedUserValidation;
 
@@ -85,7 +89,38 @@ public class DbStorageProvider implements UserStorageProvider, ImportedUserValid
 
         user.setSingleAttribute("synched", LocalDateTime.now().toString());
 
+        boolean autoLinkedIdentity = Boolean.parseBoolean(model.get(DataSourceConfiguration.AUTO_LINK_USER_TO_IDENTITY_PROVIDER));
+        String identityProviderAlias = model.get(DataSourceConfiguration.IDENTITY_PROVIDER_ALIAS);
+
+        if (autoLinkedIdentity) {
+            autoLinkedToIdentityProvider(realm, user, identityProviderAlias);
+        }
+
         return importation;
+    }
+
+    private void autoLinkedToIdentityProvider(RealmModel realm, UserModel userAdapter, String identityProviderAlias) {
+        if (StringUtils.isNotEmpty(identityProviderAlias)) {
+            String providerId = realm.getIdentityProviderByAlias(StringUtils.trim(identityProviderAlias)).getProviderId();
+
+            if (providerId != null) {
+                UserModel userModel = UserStoragePrivateUtil.userLocalStorage(session).getUserByUsername(realm, userAdapter.getUsername());
+                if (userModel != null) {
+                    FederatedIdentityModel model1 = session.users().getFederatedIdentity(realm, userModel, providerId);
+                    if (model1 == null) {
+                        FederatedIdentityModel socialLink = new FederatedIdentityModel(providerId, userModel.getUsername(), userModel.getUsername());
+                        session.users().addFederatedIdentity(realm, userModel, socialLink);
+                        logger.errorf("User(%s) is auto linked with identity provider(%s).", userAdapter.getUsername(), providerId);
+                    }
+                } else {
+                    logger.warnf("Can not find the user \"%s\".", userAdapter.getUsername());
+                }
+            } else {
+                logger.errorf("Can not find the identity provider of alias \"%s\".", userAdapter.getUsername());
+            }
+        } else {
+            logger.errorf("The identity provider alias is empty!");
+        }
     }
 
     private void importRoles(String importId, RealmModel realm, UserModel user, List<String> roles) {
@@ -216,5 +251,6 @@ public class DbStorageProvider implements UserStorageProvider, ImportedUserValid
         String roleName = Constants.DEFAULT_ROLES_ROLE_PREFIX + "-" + realm.getId();
         return KeycloakModelUtils.getRoleFromString(realm, roleName);
     }
+
 
 }
