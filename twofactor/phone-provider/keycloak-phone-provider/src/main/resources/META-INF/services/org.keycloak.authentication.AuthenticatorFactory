@@ -1,0 +1,6 @@
+org.keycloak.providers.phone.authentication.authenticators.browser.SmsOtpMfaAuthenticatorFactory
+org.keycloak.providers.phone.authentication.authenticators.resetcred.ResetCredentialWithPhone
+org.keycloak.providers.phone.authentication.authenticators.resetcred.ResetCredentialEmailWithPhone
+org.keycloak.providers.phone.authentication.authenticators.directgrant.AuthenticationCodeAuthenticatorFactory
+org.keycloak.providers.phone.authentication.authenticators.directgrant.PhoneNumberAuthenticatorFactory
+org.keycloak.providers.phone.authentication.authenticators.directgrant.EverybodyPhoneAuthenticatorFactory

@@ -17,8 +17,8 @@ import org.keycloak.federation.rest.model.ProviderConfig;
 import org.keycloak.federation.rest.model.RestUser;
 import org.keycloak.federation.rest.model.SignAlgorithm;
 
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.client.ClientRequestFilter;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.client.ClientRequestFilter;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashSet;

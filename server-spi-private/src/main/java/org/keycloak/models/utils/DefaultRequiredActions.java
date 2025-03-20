@@ -119,6 +119,30 @@ public class DefaultRequiredActions {
         }
     }
 
+    public static void checkSmsAndEmailActions(RealmModel realm) {
+        if (realm.getRequiredActionProviderByAlias(UserModel.RequiredAction.CONFIGURE_SMS_OTP.name()) == null) {
+            RequiredActionProviderModel smstotp = new RequiredActionProviderModel();
+            smstotp.setEnabled(true);
+            smstotp.setAlias(UserModel.RequiredAction.CONFIGURE_SMS_OTP.name());
+            smstotp.setName("Configure OTP over SMS");
+            smstotp.setProviderId(UserModel.RequiredAction.CONFIGURE_SMS_OTP.name());
+            smstotp.setDefaultAction(false);
+            smstotp.setPriority(60);
+            realm.addRequiredActionProvider(smstotp);
+        }
+
+        if (realm.getRequiredActionProviderByAlias(UserModel.RequiredAction.CONFIGURE_EMAIL_OTP.name()) == null) {
+            RequiredActionProviderModel smstotp = new RequiredActionProviderModel();
+            smstotp.setEnabled(true);
+            smstotp.setAlias(UserModel.RequiredAction.CONFIGURE_EMAIL_OTP.name());
+            smstotp.setName("Configure OTP over Email");
+            smstotp.setProviderId(UserModel.RequiredAction.CONFIGURE_EMAIL_OTP.name());
+            smstotp.setDefaultAction(false);
+            smstotp.setPriority(70);
+            realm.addRequiredActionProvider(smstotp);
+        }
+    }
+
     public static void addVerifyEmailAction(RealmModel realm) {
         if (realm.getRequiredActionProviderByAlias(UserModel.RequiredAction.VERIFY_EMAIL.name()) == null) {
             RequiredActionProviderModel verifyEmail = new RequiredActionProviderModel();

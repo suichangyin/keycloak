@@ -1,0 +1,2 @@
+org.keycloak.providers.email.authentication.authenticators.browser.ConditionalEmailAuthenticatorFormFactory
+org.keycloak.providers.email.authentication.authenticators.browser.EmailAuthenticatorFormFactory

@@ -1,0 +1,4 @@
+org.keycloak.providers.phone.authentication.requiredactions.UpdatePhoneNumberRequiredActionFactory
+org.keycloak.providers.phone.authentication.requiredactions.ConfigSmsOtpRequiredActionFactory
+org.keycloak.providers.phone.authentication.requiredactions.ConfigSmsWechatOtpRequiredActionFactory
+org.keycloak.providers.phone.authentication.requiredactions.ConfigWechatOtpRequiredActionFactory

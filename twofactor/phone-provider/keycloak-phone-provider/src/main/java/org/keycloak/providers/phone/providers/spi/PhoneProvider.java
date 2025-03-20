@@ -1,0 +1,29 @@
+package org.keycloak.providers.phone.providers.spi;
+
+import org.keycloak.providers.phone.providers.constants.TokenCodeType;
+import org.keycloak.provider.Provider;
+
+import java.util.Optional;
+
+
+public interface PhoneProvider extends Provider {
+
+    //TODO on key login support
+    //boolean Verification(String phoneNumber, String token);
+
+    boolean isDuplicatePhoneAllowed();
+
+    boolean validPhoneNumber();
+
+    boolean compatibleMode();
+
+    int otpExpires();
+
+    Optional<String> canonicalizePhoneNumber();
+
+    Optional<String> defaultPhoneRegion();
+
+    Optional<String> phoneNumberRegex();
+
+    int sendTokenCode(String phoneNumber, TokenCodeType type, boolean wechat);
+}

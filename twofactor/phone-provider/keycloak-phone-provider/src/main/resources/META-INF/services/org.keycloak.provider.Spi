@@ -1,0 +1,3 @@
+org.keycloak.providers.phone.providers.spi.PhoneVerificationCodeSpi
+org.keycloak.providers.phone.providers.spi.PhoneSpi
+org.keycloak.providers.phone.providers.spi.MessageSenderServiceSpi

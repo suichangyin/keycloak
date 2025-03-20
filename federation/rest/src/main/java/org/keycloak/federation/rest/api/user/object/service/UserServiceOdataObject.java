@@ -3,8 +3,8 @@ package org.keycloak.federation.rest.api.user.object.service;
 
 import org.keycloak.federation.rest.api.user.object.response.UserResponseObject;
 
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 
 /**
  * Stub Service class to be used with RestEasy to access user rest api

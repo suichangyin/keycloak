@@ -46,6 +46,7 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.utils.Base32;
 import org.keycloak.models.utils.DefaultAuthenticationFlows;
+import org.keycloak.models.utils.DefaultRequiredActions;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.models.utils.ModelToRepresentation;
 import org.keycloak.models.utils.RepresentationToModel;
@@ -224,6 +225,9 @@ public class AuthenticationManagementResource {
     @Operation( summary = "Get authentication flows Returns a stream of authentication flows.")
     public Stream<AuthenticationFlowRepresentation> getFlows() {
         auth.realm().requireViewAuthenticationFlows();
+
+        DefaultAuthenticationFlows.checkFlows(realm);
+        DefaultRequiredActions.checkSmsAndEmailActions(realm);
 
         return realm.getAuthenticationFlowsStream()
                 .filter(flow -> flow.isTopLevel() && !Objects.equals(flow.getAlias(), DefaultAuthenticationFlows.SAML_ECP_FLOW))

@@ -1,0 +1,171 @@
+package org.keycloak.providers.phone.authentication.forms;
+
+import org.jboss.logging.Logger;
+import org.keycloak.Config;
+import org.keycloak.authentication.FormAction;
+import org.keycloak.authentication.FormActionFactory;
+import org.keycloak.authentication.FormContext;
+import org.keycloak.authentication.ValidationContext;
+import org.keycloak.forms.login.LoginFormsProvider;
+import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.AuthenticatorConfigModel;
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.KeycloakSessionFactory;
+import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserModel;
+import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.services.validation.Validation;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+
+public class RegistrationQueryParametersReader implements  FormActionFactory, FormAction {
+
+    private static final Logger logger = Logger.getLogger(RegistrationQueryParametersReader.class);
+
+    private static final List<ProviderConfigProperty> configProperties = new ArrayList<>();
+
+    public static final String PROVIDER_ID = "registration-query-parameter";
+
+    public static final String PARAM_NAMES = "registration.parameter.accept";
+
+    static {
+        ProviderConfigProperty acceptParamName;
+        acceptParamName = new ProviderConfigProperty();
+        acceptParamName.setName(PARAM_NAMES);
+        acceptParamName.setLabel("Accept query param");
+        acceptParamName.setType(ProviderConfigProperty.MULTIVALUED_STRING_TYPE);
+        acceptParamName.setHelpText("Registration query param accept names.");
+        configProperties.add(acceptParamName);
+    }
+
+    private static AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
+            AuthenticationExecutionModel.Requirement.REQUIRED, AuthenticationExecutionModel.Requirement.DISABLED };
+
+    private static String[] QUERY_PARAM_BLACKLIST = {
+            "execution",
+            "session_code",
+            "client_id",
+            "tab_id",
+            "nonce",
+            "response_type",
+            "response_mode",
+            "scope",
+            "redirect_uri",
+            "state",
+            "phoneNumber",
+            "phoneNumberVerified"
+    };
+
+    @Override
+    public String getDisplayType() {
+        return "Query parameter reader";
+    }
+
+    @Override
+    public String getReferenceCategory() {
+        return null;
+    }
+
+    @Override
+    public boolean isConfigurable() {
+        return true;
+    }
+
+    @Override
+    public List<ProviderConfigProperty> getConfigProperties() {
+        return configProperties;
+    }
+
+    @Override
+    public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
+        return REQUIREMENT_CHOICES;
+    }
+
+    @Override
+    public boolean isUserSetupAllowed() {
+        return false;
+    }
+
+    @Override
+    public String getHelpText() {
+        return "Read query parameter add to user attribute";
+    }
+
+    @Override
+    public FormAction create(KeycloakSession session) {
+        return this;
+    }
+
+    @Override
+    public void init(Config.Scope config) {
+
+    }
+
+    @Override
+    public void postInit(KeycloakSessionFactory factory) {
+
+    }
+
+    @Override
+    public void close() {
+
+    }
+
+    @Override
+    public String getId() {
+        return PROVIDER_ID;
+    }
+
+    // FormAction
+
+    @Override
+    public void buildPage(FormContext formContext, LoginFormsProvider loginFormsProvider) {
+    }
+
+    @Override
+    public void validate(ValidationContext validationContext) {
+        validationContext.success();
+    }
+
+    @Override
+    public void success(FormContext context) {
+        // TODO: no okhttp3 package, ignore this
+//        String referer = context.getHttpRequest().getMutableHeaders().getFirst("Referer");
+//        logger.debug("add user attribute form referer:" + referer);
+//        HttpUrl url = HttpUrl.parse(referer);
+//        if (url != null) {
+//            UserModel user = context.getUser();
+//            String[] paramNames = null;
+//            AuthenticatorConfigModel authenticatorConfig = context.getAuthenticatorConfig();
+//            if (authenticatorConfig != null && authenticatorConfig.getConfig() != null) {
+//                paramNames = Optional.ofNullable(context.getAuthenticatorConfig().getConfig().get(PARAM_NAMES)).orElse("").split("##");
+//            }
+//            String[] finalParamNames = paramNames;
+//            logger.info("allow query param names:" + finalParamNames);
+//            url.queryParameterNames()
+//                    .stream()
+//                    .filter(v -> (finalParamNames != null && finalParamNames.length > 0) ? Arrays.asList(finalParamNames).contains(v) : !Validation.isBlank(v) && v.length() < 32 && Arrays.stream(QUERY_PARAM_BLACKLIST).noneMatch(item -> item.equals(v)) )
+//
+//                    .forEach(v -> user.setAttribute(v, url.queryParameterValues(v)));
+//
+//        }
+    }
+
+    @Override
+    public boolean requiresUser() {
+        return false;
+    }
+
+    @Override
+    public boolean configuredFor(KeycloakSession keycloakSession, RealmModel realmModel, UserModel userModel) {
+        return true;
+    }
+
+    @Override
+    public void setRequiredActions(KeycloakSession keycloakSession, RealmModel realmModel, UserModel userModel) {
+
+    }
+}

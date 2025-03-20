@@ -28,10 +28,10 @@ import org.keycloak.models.RequiredCredentialModel;
 import org.keycloak.representations.idm.IdentityProviderRepresentation;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.LinkedList;
 
 
 /**
@@ -43,6 +43,9 @@ public class DefaultAuthenticationFlows {
     public static final String REGISTRATION_FLOW = "registration";
     public static final String REGISTRATION_FORM_FLOW = "registration form";
     public static final String BROWSER_FLOW = "browser";
+    public static final String BROWSER_CODE_FLOW = "browser code";
+    public static final String BROWSER_SMS_FLOW = "browser sms";
+    public static final String BROWSER_EMAIL_FLOW = "browser email";
     public static final String DIRECT_GRANT_FLOW = "direct grant";
     public static final String RESET_CREDENTIALS_FLOW = "reset credentials";
     public static final String LOGIN_FORMS_FLOW = "forms";
@@ -58,6 +61,9 @@ public class DefaultAuthenticationFlows {
 
     public static void addFlows(RealmModel realm) {
         if (realm.getFlowByAlias(BROWSER_FLOW) == null) browserFlow(realm);
+        if (realm.getFlowByAlias(BROWSER_CODE_FLOW) == null) browserWithCodeOtpFlow(realm, false);
+        if (realm.getFlowByAlias(BROWSER_SMS_FLOW) == null) browserWithSmsOtpFlow(realm, false);
+        if (realm.getFlowByAlias(BROWSER_EMAIL_FLOW) == null) browserWithEmailOtpFlow(realm, false);
         if (realm.getFlowByAlias(DIRECT_GRANT_FLOW) == null) directGrantFlow(realm, false);
         if (realm.getFlowByAlias(REGISTRATION_FLOW) == null) registrationFlow(realm, false);
         if (realm.getFlowByAlias(RESET_CREDENTIALS_FLOW) == null) resetCredentialsFlow(realm);
@@ -69,6 +75,9 @@ public class DefaultAuthenticationFlows {
 
     public static void migrateFlows(RealmModel realm) {
         if (realm.getFlowByAlias(BROWSER_FLOW) == null) browserFlow(realm, true);
+        if (realm.getFlowByAlias(BROWSER_CODE_FLOW) == null) browserWithCodeOtpFlow(realm, true);
+        if (realm.getFlowByAlias(BROWSER_SMS_FLOW) == null) browserWithSmsOtpFlow(realm, true);
+        if (realm.getFlowByAlias(BROWSER_EMAIL_FLOW) == null) browserWithEmailOtpFlow(realm, true);
         if (realm.getFlowByAlias(DIRECT_GRANT_FLOW) == null) directGrantFlow(realm, true);
         if (realm.getFlowByAlias(REGISTRATION_FLOW) == null) registrationFlow(realm, true);
         if (realm.getFlowByAlias(RESET_CREDENTIALS_FLOW) == null) resetCredentialsFlow(realm);
@@ -76,6 +85,12 @@ public class DefaultAuthenticationFlows {
         if (realm.getFlowByAlias(FIRST_BROKER_LOGIN_FLOW) == null) firstBrokerLoginFlow(realm, true);
         if (realm.getFlowByAlias(SAML_ECP_FLOW) == null) samlEcpProfile(realm);
         if (realm.getFlowByAlias(DOCKER_AUTH) == null) dockerAuthenticationFlow(realm);
+    }
+
+    public static void checkFlows(RealmModel realm) {
+        if (realm.getFlowByAlias(BROWSER_CODE_FLOW) == null) browserWithCodeOtpFlow(realm, true);
+        if (realm.getFlowByAlias(BROWSER_SMS_FLOW) == null) browserWithSmsOtpFlow(realm, true);
+        if (realm.getFlowByAlias(BROWSER_EMAIL_FLOW) == null) browserWithEmailOtpFlow(realm, true);
     }
 
     public static void registrationFlow(RealmModel realm, boolean migrate) {
@@ -357,7 +372,7 @@ public class DefaultAuthenticationFlows {
         conditionalOTP = realm.addAuthenticationFlow(conditionalOTP);
         execution = new AuthenticationExecutionModel();
         execution.setParentFlow(forms.getId());
-        execution.setRequirement(AuthenticationExecutionModel.Requirement.CONDITIONAL);
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.DISABLED);
         if (migrate && hasCredentialType(realm, RequiredCredentialModel.TOTP.getType())) {
             execution.setRequirement(AuthenticationExecutionModel.Requirement.REQUIRED);
         }
@@ -384,6 +399,252 @@ public class DefaultAuthenticationFlows {
         realm.addAuthenticatorExecution(execution);
 
         addOrganizationBrowserFlowStep(realm, browser);
+    }
+
+    public static void browserWithCodeOtpFlow(RealmModel realm, boolean migrate) {
+        AuthenticationFlowModel browser = new AuthenticationFlowModel();
+        browser.setAlias(BROWSER_CODE_FLOW);
+        browser.setDescription("Browser code authentication");
+        browser.setProviderId("basic-flow");
+        browser.setTopLevel(true);
+        browser.setBuiltIn(true);
+        browser = realm.addAuthenticationFlow(browser);
+
+        AuthenticationExecutionModel execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(browser.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.ALTERNATIVE);
+        execution.setAuthenticator("auth-cookie");
+        execution.setPriority(10);
+        execution.setAuthenticatorFlow(false);
+        realm.addAuthenticatorExecution(execution);
+        execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(browser.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.DISABLED);
+        if (migrate && hasCredentialType(realm, RequiredCredentialModel.KERBEROS.getType())) {
+            execution.setRequirement(AuthenticationExecutionModel.Requirement.ALTERNATIVE);
+
+        }
+        execution.setAuthenticator("auth-spnego");
+        execution.setPriority(20);
+        execution.setAuthenticatorFlow(false);
+        realm.addAuthenticatorExecution(execution);
+
+        addIdentityProviderAuthenticator(realm, null);
+
+        AuthenticationFlowModel forms = new AuthenticationFlowModel();
+        forms.setTopLevel(false);
+        forms.setBuiltIn(true);
+        forms.setAlias(LOGIN_FORMS_FLOW);
+        forms.setDescription("Username, password, otp and other auth forms.");
+        forms.setProviderId("basic-flow");
+        forms = realm.addAuthenticationFlow(forms);
+        execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(browser.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.ALTERNATIVE);
+        execution.setFlowId(forms.getId());
+        execution.setPriority(30);
+        execution.setAuthenticatorFlow(true);
+        realm.addAuthenticatorExecution(execution);
+
+        // forms
+        // Username Password processing
+        execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(forms.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.REQUIRED);
+        execution.setAuthenticator("auth-username-password-form");
+        execution.setPriority(10);
+        execution.setAuthenticatorFlow(false);
+        realm.addAuthenticatorExecution(execution);
+
+        AuthenticationFlowModel conditionalOTP = new AuthenticationFlowModel();
+        conditionalOTP.setTopLevel(false);
+        conditionalOTP.setBuiltIn(true);
+        conditionalOTP.setAlias("Browser - Code OTP");
+        conditionalOTP.setDescription("Flow to determine if the OTP is required for the authentication");
+        conditionalOTP.setProviderId("basic-flow");
+        conditionalOTP = realm.addAuthenticationFlow(conditionalOTP);
+        execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(forms.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.REQUIRED);
+        execution.setFlowId(conditionalOTP.getId());
+        execution.setPriority(20);
+        execution.setAuthenticatorFlow(true);
+        realm.addAuthenticatorExecution(execution);
+
+        // otp processing
+        execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(conditionalOTP.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.REQUIRED);
+        execution.setAuthenticator("auth-otp-form");
+        execution.setPriority(20);
+        execution.setAuthenticatorFlow(false);
+        realm.addAuthenticatorExecution(execution);
+
+//        addOrganizationBrowserFlowStep(realm, browser);
+    }
+
+    public static void browserWithSmsOtpFlow(RealmModel realm, boolean migrate) {
+        AuthenticationFlowModel browser = new AuthenticationFlowModel();
+        browser.setAlias(BROWSER_SMS_FLOW);
+        browser.setDescription("Browser sms authentication");
+        browser.setProviderId("basic-flow");
+        browser.setTopLevel(true);
+        browser.setBuiltIn(true);
+        browser = realm.addAuthenticationFlow(browser);
+
+        AuthenticationExecutionModel execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(browser.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.ALTERNATIVE);
+        execution.setAuthenticator("auth-cookie");
+        execution.setPriority(10);
+        execution.setAuthenticatorFlow(false);
+        realm.addAuthenticatorExecution(execution);
+        execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(browser.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.DISABLED);
+        if (migrate && hasCredentialType(realm, RequiredCredentialModel.KERBEROS.getType())) {
+            execution.setRequirement(AuthenticationExecutionModel.Requirement.ALTERNATIVE);
+
+        }
+        execution.setAuthenticator("auth-spnego");
+        execution.setPriority(20);
+        execution.setAuthenticatorFlow(false);
+        realm.addAuthenticatorExecution(execution);
+
+        addIdentityProviderAuthenticator(realm, null);
+
+        AuthenticationFlowModel forms = new AuthenticationFlowModel();
+        forms.setTopLevel(false);
+        forms.setBuiltIn(true);
+        forms.setAlias(LOGIN_FORMS_FLOW);
+        forms.setDescription("Username, password, otp and other auth forms.");
+        forms.setProviderId("basic-flow");
+        forms = realm.addAuthenticationFlow(forms);
+        execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(browser.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.ALTERNATIVE);
+        execution.setFlowId(forms.getId());
+        execution.setPriority(30);
+        execution.setAuthenticatorFlow(true);
+        realm.addAuthenticatorExecution(execution);
+
+        // forms
+        // Username Password processing
+        execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(forms.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.REQUIRED);
+        execution.setAuthenticator("auth-username-password-form");
+        execution.setPriority(10);
+        execution.setAuthenticatorFlow(false);
+        realm.addAuthenticatorExecution(execution);
+
+        AuthenticationFlowModel conditionalOTP = new AuthenticationFlowModel();
+        conditionalOTP.setTopLevel(false);
+        conditionalOTP.setBuiltIn(true);
+        conditionalOTP.setAlias("Browser - SMS OTP");
+        conditionalOTP.setDescription("Flow to determine if the OTP is required for the authentication");
+        conditionalOTP.setProviderId("basic-flow");
+        conditionalOTP = realm.addAuthenticationFlow(conditionalOTP);
+        execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(forms.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.REQUIRED);
+        execution.setFlowId(conditionalOTP.getId());
+        execution.setPriority(20);
+        execution.setAuthenticatorFlow(true);
+        realm.addAuthenticatorExecution(execution);
+
+        // otp processing
+        execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(conditionalOTP.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.REQUIRED);
+        execution.setAuthenticator("sms-otp-authenticator");
+        execution.setPriority(20);
+        execution.setAuthenticatorFlow(false);
+        realm.addAuthenticatorExecution(execution);
+
+//        addOrganizationBrowserFlowStep(realm, browser);
+    }
+
+    public static void browserWithEmailOtpFlow(RealmModel realm, boolean migrate) {
+        AuthenticationFlowModel browser = new AuthenticationFlowModel();
+        browser.setAlias(BROWSER_EMAIL_FLOW);
+        browser.setDescription("Browser email authentication");
+        browser.setProviderId("basic-flow");
+        browser.setTopLevel(true);
+        browser.setBuiltIn(true);
+        browser = realm.addAuthenticationFlow(browser);
+
+        AuthenticationExecutionModel execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(browser.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.ALTERNATIVE);
+        execution.setAuthenticator("auth-cookie");
+        execution.setPriority(10);
+        execution.setAuthenticatorFlow(false);
+        realm.addAuthenticatorExecution(execution);
+        execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(browser.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.DISABLED);
+        if (migrate && hasCredentialType(realm, RequiredCredentialModel.KERBEROS.getType())) {
+            execution.setRequirement(AuthenticationExecutionModel.Requirement.ALTERNATIVE);
+
+        }
+        execution.setAuthenticator("auth-spnego");
+        execution.setPriority(20);
+        execution.setAuthenticatorFlow(false);
+        realm.addAuthenticatorExecution(execution);
+
+        addIdentityProviderAuthenticator(realm, null);
+
+        AuthenticationFlowModel forms = new AuthenticationFlowModel();
+        forms.setTopLevel(false);
+        forms.setBuiltIn(true);
+        forms.setAlias(LOGIN_FORMS_FLOW);
+        forms.setDescription("Username, password, otp and other auth forms.");
+        forms.setProviderId("basic-flow");
+        forms = realm.addAuthenticationFlow(forms);
+        execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(browser.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.ALTERNATIVE);
+        execution.setFlowId(forms.getId());
+        execution.setPriority(30);
+        execution.setAuthenticatorFlow(true);
+        realm.addAuthenticatorExecution(execution);
+
+        // forms
+        // Username Password processing
+        execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(forms.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.REQUIRED);
+        execution.setAuthenticator("auth-username-password-form");
+        execution.setPriority(10);
+        execution.setAuthenticatorFlow(false);
+        realm.addAuthenticatorExecution(execution);
+
+        AuthenticationFlowModel conditionalOTP = new AuthenticationFlowModel();
+        conditionalOTP.setTopLevel(false);
+        conditionalOTP.setBuiltIn(true);
+        conditionalOTP.setAlias("Browser - Email OTP");
+        conditionalOTP.setDescription("Flow to determine if the OTP is required for the authentication");
+        conditionalOTP.setProviderId("basic-flow");
+        conditionalOTP = realm.addAuthenticationFlow(conditionalOTP);
+        execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(forms.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.REQUIRED);
+        execution.setFlowId(conditionalOTP.getId());
+        execution.setPriority(20);
+        execution.setAuthenticatorFlow(true);
+        realm.addAuthenticatorExecution(execution);
+
+        // otp processing
+        execution = new AuthenticationExecutionModel();
+        execution.setParentFlow(conditionalOTP.getId());
+        execution.setRequirement(AuthenticationExecutionModel.Requirement.REQUIRED);
+        execution.setAuthenticator("email-authenticator");
+        execution.setPriority(20);
+        execution.setAuthenticatorFlow(false);
+        realm.addAuthenticatorExecution(execution);
+
+//        addOrganizationBrowserFlowStep(realm, browser);
     }
 
     public static void addIdentityProviderAuthenticator(RealmModel realm, String defaultProvider) {

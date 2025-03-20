@@ -1,0 +1,4 @@
+org.keycloak.providers.phone.authentication.forms.RegistrationPhoneNumber
+org.keycloak.providers.phone.authentication.forms.RegistrationQueryParametersReader
+org.keycloak.providers.phone.authentication.forms.RegistrationLeast
+org.keycloak.providers.phone.authentication.forms.RegistrationPhoneAsUserNameCreation

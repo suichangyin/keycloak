@@ -32,6 +32,7 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.utils.DefaultAuthenticationFlows;
+import org.keycloak.models.utils.DefaultRequiredActions;
 import org.keycloak.representations.idm.RequiredActionProviderRepresentation;
 import org.keycloak.services.resources.KeycloakOpenAPI;
 import org.keycloak.services.resources.admin.permissions.AdminPermissionEvaluator;
@@ -65,6 +66,9 @@ public class AuthenticationManagementResource extends RoleMappingResource {
     )
     public final List<Authentication> listIdentityProviders() {
         auth.realm().requireViewAuthenticationFlows();
+
+        DefaultAuthenticationFlows.checkFlows(realm);
+        DefaultRequiredActions.checkSmsAndEmailActions(realm);
 
         return realm.getAuthenticationFlowsStream()
                 .filter(flow -> flow.isTopLevel() && !Objects.equals(flow.getAlias(), DefaultAuthenticationFlows.SAML_ECP_FLOW))

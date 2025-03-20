@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.keycloak</groupId>
+        <artifactId>keycloak-2fa-parent</artifactId>
+        <version>26.1.0</version>
+    </parent>
+
+    <artifactId>keycloak-phone-provider-parent</artifactId>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>keycloak-phone-provider</module>
+        <module>keycloak-sms-provider-dummy</module>
+        <module>keycloak-sms-provider-aliyun</module>
+        <module>keycloak-sms-provider-cloopen</module>
+        <module>keycloak-sms-provider-tencent</module>
+        <module>keycloak-sms-provider-totalvoice</module>
+        <module>keycloak-sms-provider-twilio</module>
+        <module>keycloak-sms-provider-yunxin</module>
+        <module>keycloak-sms-provider-datatom</module>
+        <module>keycloak-sms-provider-wechat</module>
+    </modules>
+
+</project>
