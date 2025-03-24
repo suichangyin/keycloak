@@ -294,6 +294,8 @@ public class RealmManager {
             console.setProtocol(OIDCLoginProtocol.LOGIN_PROTOCOL);
             console.setRedirectUris(Collections.singleton("*"));
             console.setWebOrigins(Collections.singleton("*"));
+            console.setAttribute(Constants.USE_REMOVE_AUDIENCE_ACCESS_TOKEN_ENABLED, "true");
+            console.setAttribute(Constants.USE_MERGE_REALM_BASIC_ROLES_TOKEN_ENABLED, "true");
             //console.setAttribute(OIDCConfigAttributes.PKCE_CODE_CHALLENGE_METHOD, "S256");
             console.setClientAuthenticatorType(KeycloakModelUtils.getDefaultClientAuthenticatorType());
             console.setSecret(secret);

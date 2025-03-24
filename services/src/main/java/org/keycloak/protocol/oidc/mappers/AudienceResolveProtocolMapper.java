@@ -18,7 +18,6 @@
 package org.keycloak.protocol.oidc.mappers;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,6 +92,16 @@ public class AudienceResolveProtocolMapper extends AbstractOIDCProtocolMapper im
         if (!includeInAccessToken){
             return token;
         }
+
+        if (getShouldRemoveAudienceToken(session)) {
+            return token;
+        }
+
+        String clientId = clientSessionCtx.getClientSession().getClient().getClientId();
+        if ("datatom-cloud".equals(clientId) || "hyhive".equals(clientId)) {
+            return token;
+        }
+
         setAudience(token, clientSessionCtx, session);
         return token;
     }

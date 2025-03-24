@@ -29,6 +29,8 @@ import org.keycloak.common.Profile;
 import org.keycloak.common.util.Encode;
 import org.keycloak.jose.jws.JWSInput;
 import org.keycloak.jose.jws.JWSInputException;
+import org.keycloak.models.ClientModel;
+import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.protocol.oidc.TokenManager;
@@ -195,7 +197,27 @@ public class AdminRoot {
             throw new NotAuthorizedException("Bearer");
         }
 
+        token = authResult.getToken();
+
+        if (getShouldMergeRealmRolesToken(session)) {
+            logger.debugf("Parsed authResult getToken: %s", token.toString());
+            Map<String, AccessToken.Access> resourceAccess = token.getResourceAccess();
+            AccessToken.Access defaultRealmAccess = resourceAccess.getOrDefault("default-realm", null);
+            if (defaultRealmAccess != null) {
+                realm.getClientsStream()
+                        .map(ClientModel::getClientId)
+                        .filter(clientId -> clientId != null && clientId.contains("-realm"))
+                        .forEach(clientId -> resourceAccess.putIfAbsent(clientId, defaultRealmAccess));
+            }
+            logger.debugf("Parsed and Modified authResult token: %s", token.toString());
+        }
+
         return new AdminAuth(realm, authResult.getToken(), authResult.getUser(), authResult.getClient());
+    }
+
+    boolean getShouldMergeRealmRolesToken(KeycloakSession session) {
+        Object attributeValue = session.getAttribute(Constants.USE_MERGE_REALM_BASIC_ROLES_TOKEN_ENABLED);
+        return Boolean.parseBoolean(session.getContext().getClient().getAttribute(Constants.USE_MERGE_REALM_BASIC_ROLES_TOKEN_ENABLED)) || attributeValue == null || (attributeValue != null && (boolean) attributeValue);
     }
 
     public static UriBuilder realmsUrl(UriInfo uriInfo) {

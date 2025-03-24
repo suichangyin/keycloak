@@ -176,6 +176,8 @@ public final class Constants {
     public static final String SESSION_NOTE_LIGHTWEIGHT_USER = "keycloak.userModel";
 
     public static final String USE_LIGHTWEIGHT_ACCESS_TOKEN_ENABLED = "client.use.lightweight.access.token.enabled";
+    public static final String USE_REMOVE_AUDIENCE_ACCESS_TOKEN_ENABLED = "client.use.remove.audience.access.token.enabled";
+    public static final String USE_MERGE_REALM_BASIC_ROLES_TOKEN_ENABLED = "client.use.merge.realm.basic.roles.access.token.enabled";
 
     public static final String SUPPORT_JWT_CLAIM_IN_INTROSPECTION_RESPONSE_ENABLED = "client.introspection.response.allow.jwt.claim.enabled";
 

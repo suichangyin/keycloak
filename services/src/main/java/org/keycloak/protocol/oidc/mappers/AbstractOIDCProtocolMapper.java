@@ -86,6 +86,16 @@ public abstract class AbstractOIDCProtocolMapper implements ProtocolMapper {
         return Boolean.parseBoolean(session.getContext().getClient().getAttribute(Constants.USE_LIGHTWEIGHT_ACCESS_TOKEN_ENABLED)) || (attributeValue != null && (boolean) attributeValue);
     }
 
+    boolean getShouldRemoveAudienceToken(KeycloakSession session) {
+        Object attributeValue = session.getAttribute(Constants.USE_REMOVE_AUDIENCE_ACCESS_TOKEN_ENABLED);
+        return Boolean.parseBoolean(session.getContext().getClient().getAttribute(Constants.USE_REMOVE_AUDIENCE_ACCESS_TOKEN_ENABLED)) || (attributeValue != null && (boolean) attributeValue);
+    }
+
+    boolean getShouldMergeRealmRolesToken(KeycloakSession session) {
+        Object attributeValue = session.getAttribute(Constants.USE_MERGE_REALM_BASIC_ROLES_TOKEN_ENABLED);
+        return Boolean.parseBoolean(session.getContext().getClient().getAttribute(Constants.USE_MERGE_REALM_BASIC_ROLES_TOKEN_ENABLED)) || attributeValue == null || (attributeValue != null && (boolean) attributeValue);
+    }
+
     public AccessToken transformAccessToken(AccessToken token, ProtocolMapperModel mappingModel, KeycloakSession session,
                                             UserSessionModel userSession, ClientSessionContext clientSessionCtx) {
         boolean shouldUseLightweightToken = getShouldUseLightweightToken(session);

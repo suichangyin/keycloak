@@ -17,6 +17,7 @@
 
 package org.keycloak.protocol.oidc.mappers;
 
+import org.jboss.logging.Logger;
 import org.keycloak.models.ClientSessionContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.ProtocolMapperModel;
@@ -30,6 +31,7 @@ import org.keycloak.utils.RoleResolveUtil;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Allows mapping of user client role mappings to an ID and Access Token claim.
@@ -37,7 +39,6 @@ import java.util.Map;
  * @author <a href="mailto:thomas.darimont@gmail.com">Thomas Darimont</a>
  */
 public class UserClientRoleMappingMapper extends AbstractUserRoleMappingMapper {
-
     public static final String PROVIDER_ID = "oidc-usermodel-client-role-mapper";
 
     private static final String TOKEN_CLAIM_NAME_TOOLTIP = "usermodel.clientRoleMapping.tokenClaimName.tooltip";
@@ -119,8 +120,15 @@ public class UserClientRoleMappingMapper extends AbstractUserRoleMappingMapper {
             // If clientId is not specified, we consider all clients
             Map<String, AccessToken.Access> allAccess = RoleResolveUtil.getAllResolvedClientRoles(session, clientSessionCtx);
 
+            Set<String> clientIds = allAccess.keySet();
+            boolean mergeRoles = getShouldMergeRealmRolesToken(session);
             for (Map.Entry<String, AccessToken.Access> entry : allAccess.entrySet()) {
                 String currClientId = entry.getKey();
+
+                if (mergeRoles && clientIds.contains("default-realm") && currClientId.endsWith("-realm") && !"default-realm".equals(currClientId)) {
+                    continue;
+                }
+
                 AccessToken.Access access = entry.getValue();
                 if (access == null) {
                     continue;
