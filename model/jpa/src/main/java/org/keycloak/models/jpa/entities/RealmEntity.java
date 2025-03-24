@@ -48,7 +48,8 @@ import java.util.Set;
 @Table(name="REALM")
 @Entity
 @NamedQueries({
-        @NamedQuery(name="getAllRealmIds", query="select realm.id from RealmEntity realm"),
+        @NamedQuery(name="getAllRealmIds", query="select realm.id from RealmEntity realm ORDER BY CASE when realm.name = 'default' then 0 else 1 end, realm.name asc"),
+        @NamedQuery(name="getAllRealms", query="select realm from RealmEntity realm ORDER BY CASE when realm.name = 'default' then 0 else 1 end, realm.name asc"),
         @NamedQuery(name="getRealmIdsWithNameContaining", query="select realm.id from RealmEntity realm where LOWER(realm.name) like CONCAT('%', LOWER(:search), '%')"),
         @NamedQuery(name="getRealmIdByName", query="select realm.id from RealmEntity realm where realm.name = :name"),
         @NamedQuery(name="getRealmIdsWithProviderType", query="select distinct c.realm.id from ComponentEntity c where c.providerType = :providerType"),
