@@ -6,9 +6,12 @@ run:
     windows: 运行前都先build，避免代码不生效
         .\kc.bat build && .\kc.bat start --http-enabled=true --hostname-strict=false --http-port=9535 --https-port=9536
 
+    linux:
+        export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-17.0.13.11-2.oe2403.x86_64
+        ./kc.sh start --http-enabled=true --hostname-strict=false --http-port=9595 --https-port=9596
 
-build run:
-    .\kc.bat start --http-enabled=true --hostname-strict=false --http-relative-path=/auth
+    build run:
+        .\kc.bat start --http-enabled=true --hostname-strict=false --http-relative-path=/auth
 
 cankao: https://www.keycloak.org/server/all-config?f=build
 
