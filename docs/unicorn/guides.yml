@@ -42,5 +42,9 @@ parameter:
         --https-key-store-password=yourpassword
             指定key密码
 
+    log-level:
+        --log-level="INFO,org.hibernate:debug,org.hibernate.hql.internal.ast:info"
+        --log-level="INFO,org.hibernate:debug" --log-level-org.keycloak=trace
+
 创建管理员账户:
     kc.sh|bat bootstrap-admin user [--username=value] [--password=value] [--no-prompt] [--expiration=value]
