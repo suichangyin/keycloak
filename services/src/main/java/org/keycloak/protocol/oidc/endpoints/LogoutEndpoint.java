@@ -152,6 +152,7 @@ public class LogoutEndpoint {
     @NoCache
     public Response logout(@QueryParam(OIDCLoginProtocol.ID_TOKEN_HINT) String encodedIdToken,
                            @QueryParam(OIDCLoginProtocol.CLIENT_ID_PARAM) String clientId,
+                           @QueryParam(OIDCLoginProtocol.REDIRECT_URI_PARAM) String redirectUri,
                            @QueryParam(OIDCLoginProtocol.POST_LOGOUT_REDIRECT_URI_PARAM) String postLogoutRedirectUri,
                            @QueryParam(OIDCLoginProtocol.STATE_PARAM) String state,
                            @QueryParam(OIDCLoginProtocol.UI_LOCALES_PARAM) String uiLocales,
@@ -236,6 +237,9 @@ public class LogoutEndpoint {
         if (uiLocales != null) {
             logoutSession.setClientNote(LocaleSelectorProvider.CLIENT_REQUEST_LOCALE, uiLocales);
         }
+        if (redirectUri != null) {
+            logoutSession.setAuthNote(OIDCLoginProtocol.LOGOUT_REDIRECT_URI, redirectUri);
+        }
         if (validatedRedirectUri != null) {
             logoutSession.setAuthNote(OIDCLoginProtocol.LOGOUT_REDIRECT_URI, validatedRedirectUri);
         }
@@ -282,11 +286,13 @@ public class LogoutEndpoint {
         }
 
         // Logout confirmation screen will be displayed to the user in this case
-        if (confirmationNeeded || forcedConfirmation) {
-            return displayLogoutConfirmationScreen(loginForm, logoutSession);
-        } else {
-            return doBrowserLogout(logoutSession);
-        }
+//        if (confirmationNeeded || forcedConfirmation) {
+//            return displayLogoutConfirmationScreen(loginForm, logoutSession);
+//        } else {
+//            return doBrowserLogout(logoutSession);
+//        }
+
+        return doBrowserLogout(logoutSession);
     }
 
     private Response displayLogoutConfirmationScreen(LoginFormsProvider loginForm, AuthenticationSessionModel authSession) {
@@ -316,6 +322,7 @@ public class LogoutEndpoint {
             return logout(
                     form.getFirst(OIDCLoginProtocol.ID_TOKEN_HINT),
                     form.getFirst(OIDCLoginProtocol.CLIENT_ID_PARAM),
+                    form.getFirst(OIDCLoginProtocol.REDIRECT_URI_PARAM),
                     form.getFirst(OIDCLoginProtocol.POST_LOGOUT_REDIRECT_URI_PARAM),
                     form.getFirst(OIDCLoginProtocol.STATE_PARAM),
                     form.getFirst(OIDCLoginProtocol.UI_LOCALES_PARAM),
